@@ -1,0 +1,41 @@
+# Layer 1 of the review gates (PLAN.md §8a). Free on a public repo.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 9 * * *" # nightly-sync, 03:17 Edmonton
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run check # check:shared + check:rules + typecheck + lint
+
+  # Re-sync from web main into the CI checkout (never committed) and typecheck.
+  # Red here = a web change broke the app, even if nobody ran `npm run sync`.
+  nightly-sync:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci
+      - run: npm run sync
+      - run: npm run typecheck
+      - name: Say what changed
+        if: always()
+        run: git diff --stat

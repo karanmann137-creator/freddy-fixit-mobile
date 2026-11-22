@@ -47,7 +47,7 @@ store release:
 
 ```
 freddy-fixit-mobile/
-├─ app/                          Expo Router. Route files stay THIN: params → feature screen.
+├─ src/app/                      Expo Router (SDK 58 puts routes under src/). Route files stay THIN: params → feature screen.
 │  ├─ _layout.tsx                Providers: fonts, theme, QueryBoundary, auth gate, push, link handler
 │  ├─ index.tsx                  Redirect by readAuthUser() + getMyProfile().role
 │  ├─ (auth)/                    welcome, sign-in, verify-code, choose-role, forgot-password,
@@ -89,6 +89,10 @@ Path alias `@/` → `src/`. This matches the web repo, so synced files import
 `@/lib/supabase` unchanged. Expo's Metro resolves `tsconfig` `paths` natively, so no Babel
 resolver is needed.
 
+**Built-in note (2026-11-22, Phase 1):** `imageCompress` on native takes and returns a picker asset
+`{uri, mimeType, fileName}`, because React Native has no browser `File`. Its size/quality `PROFILES` are
+parsed from the web file into `imageProfiles.generated.ts`, so the numbers stay single-sourced.
+
 ---
 
 ## 2. Sharing `src/lib` and `database.types.ts`
@@ -122,10 +126,10 @@ list.
 
 | Class | Files | Notes |
 |---|---|---|
-| **Shared verbatim** | `database.types.ts`, `authRead`, `availability`, `calgaryAreas`, `chatParse`, `checklistTemplates`, `contractCopy`, `contractorGuide`, `dashSearch`, `dismissals`, `docPhotos`, `emailValidation`, `imageSafety`, `jobCode`, `jobFunding`, `jobQuestions`, `jobSplit`, `jobStage`, `jobText`, `mfa`, `myProfile`, `passwordStrength`, `platformRates`, `platformStatus`, `priceChange`, `recurrence`, `respTime`, `roleWrite`, `servicePricing`, `serviceTags`, `stripeRequirements`, `notificationRoutes` (only `noteTarget`/types are used, see below) | None of these touch `window`/`document`/storage at import time. `passwordStrength.checkPwned` already feature-tests `crypto.subtle`. Install `react-native-quick-crypto` or accept the documented skip. |
+| **Shared verbatim** | `database.types.ts`, `authRead`, `availability`, `calgaryAreas`, `chatParse`, `checklistTemplates`, `contractCopy`, `contractorGuide`, `dashSearch`, `dismissals`, `emailValidation`, `imageSafety`, `jobCode`, `jobFunding`, `jobQuestions`, `jobSplit`, `jobStage`, `jobText`, `mfa`, `myProfile`, `passwordStrength`, `platformRates`, `platformStatus`, `priceChange`, `recurrence`, `respTime`, `roleWrite`, `servicePricing`, `serviceTags`, `stripeRequirements`, `notificationRoutes` (only `noteTarget`/types are used, see below) | None of these touch `window`/`document`/storage at import time. `passwordStrength.checkPwned` already feature-tests `crypto.subtle`. Install `react-native-quick-crypto` or accept the documented skip. |
 | **Shared after web prereq W2** | `chatUnread`, `bidThreads` | Today they call `window.addEventListener(CHAT_CHANGED_EVENT)`. React Native has no `window` events, so this would crash at runtime. W2 moves them onto `@/lib/bus`. |
 | **Native override** | `supabase.ts` (§4.1), `bus.ts` (EventEmitter), `imageCompress.ts` (`expo-image-manipulator`, same `PROFILES` 1600/.82 · 640/.85 · 2400/.92, every failure returns the original), `theme.ts` (`Appearance` + AsyncStorage, same `TEXT_SCALES`/keys), `requestDraft.ts`, `referralCode.ts`, `terms.ts`, `reviewPrompt.ts`, `referralPrompt.ts`, `completionPrompt.ts` (AsyncStorage instead of localStorage, `bus` instead of `window` events), `analytics.ts` (no-op at first; `posthog-react-native` later if the owner asks) | Keep each override's exports identical so a synced file that imports it compiles. Typecheck proves it. |
-| **Web only, not synced** | `seo.ts`, `printDoc.ts`, `blogDb.tsx` | No app surface. |
+| **Web only, not synced** | `seo.ts`, `printDoc.ts`, `blogDb.tsx`, `docPhotos.ts` (builds print documents from browser `File`/`Blob`) | No app surface. |
 
 **Lint guard.** `no-restricted-imports` bans `readDashNavFromUrl` and
 `clearDashNavFromUrl` from `@/lib/notificationRoutes`. They read `window.location`. The
@@ -359,7 +363,7 @@ push leg:
   - **Pushes for work already under way keep going.** That covers every chat message (job and bid-stage threads), payments and balances, scheduling, visits, price changes, completion, disputes, contracts and reviews. People mid-job need them.
   - **Broadcast pushes are silenced, the same as email.** These invite someone to start something new.
 
-  **One predicate decides it: `push_suppressed(p_type text) → boolean`** (SQL, D4). It returns `outbound_paused() AND p_type = any(<broadcast set>)`. `sendPush` calls it for every notification, so the gate lives inside the emitter (web rule: "a new `net.http_post` is a pause bypass unless it calls `outbound_paused()` itself"). The broadcast set is classified from today's types in `notificationRoutes.ts` and the `notify_user` callers:
+  **One predicate decides it: `notify_suppressed(p_type text) → boolean`** (SQL, D4). It returns `outbound_paused() AND p_type = any(<broadcast set>)`. `sendPush` calls it for every notification, so the gate lives inside the emitter (web rule: "a new `net.http_post` is a pause bypass unless it calls `outbound_paused()` itself"). The broadcast set is classified from today's types in `notificationRoutes.ts` and the `notify_user` callers:
 
   | Silenced while paused (broadcast) | Always pushed (under way / addressed to one person) |
   |---|---|
@@ -368,7 +372,7 @@ push leg:
   | `vetting_reminder`, `contractor_guide` (onboarding nudges) | `application_approved`, `referral_rewarded`, `job_confirmed`, `review_received` |
   | | all chat (`notify-message`) |
 
-  **An unknown type is pushed**, because a new type is far more likely to be job-scoped, and silencing a mid-job person is the worse failure. So **adding a broadcast type means adding it to `push_suppressed`'s set in the same ship.** Add that line to the web `docs/notifications-and-email.md` type checklist, next to "verify it has exactly one emitter". `set_platform_mode` needs no change because the predicate reads the mode live. Payment receipts and auth mail are email, not push, and stay ungated as now.
+  **An unknown type is pushed**, because a new type is far more likely to be job-scoped, and silencing a mid-job person is the worse failure. So **adding a broadcast type means adding it to `notify_suppressed`'s set in the same ship.** Add that line to the web `docs/notifications-and-email.md` type checklist, next to "verify it has exactly one emitter". `set_platform_mode` needs no change because the predicate reads the mode live. Payment receipts and auth mail are email, not push, and stay ungated as now.
 
 **Privacy on the lock screen.**
 - Push bodies never carry message text, addresses, phone numbers or amounts. Chat pushes read "Mike sent you a message". Job pushes reuse the notification `title` only, plus "Open to see details".
@@ -406,7 +410,7 @@ build it** and must not duplicate it.
 1. **One opt-in toggle in Account → Settings** ("Text me about my jobs"). It calls the web's `sms_set_opt_in` / `sms_status` RPCs once they're final, and stays hidden until `sms_status` says SMS is live. **Build it only after the SMS session ships**, then copy that session's consent wording and flow exactly. Consent text is a legal record (CASL); the app must not word it differently from the web.
 2. **No SMS logic in the app, ever.** Sending, caps, opt-out (STOP) and the pause all live server-side in `send-sms`, which is the only holder of a Twilio credential, as the migration states. The app only reads and writes consent.
 3. **The Twilio host is server-side only**, so the app needs no `check_legal.py` or privacy-label change for it. The store privacy labels still list "phone number → used for notifications" once SMS is live.
-4. **Resolve before push ships (Phase 6), with the SMS session:** how push and SMS share a notification so a person doesn't get **both** for one event. The suggested rule, for the SMS session to confirm or replace: SMS only for types that matter mid-job, and only when the recipient has **no enabled `push_tokens` row**. That keeps SMS cost and caps low, and it needs only a read of D1 from `send-sms`. The pause split in §5 should apply to SMS identically. Reuse the same `push_suppressed()` broadcast set (or rename it `notify_suppressed()`) so there is one answer, not two.
+4. **Resolve before push ships (Phase 6), with the SMS session:** how push and SMS share a notification so a person doesn't get **both** for one event. The suggested rule, for the SMS session to confirm or replace: SMS only for types that matter mid-job, and only when the recipient has **no enabled `push_tokens` row**. That keeps SMS cost and caps low, and it needs only a read of D1 from `send-sms`. The pause split in §5 should apply to SMS identically. Reuse the same `notify_suppressed()` broadcast set (or rename it `notify_suppressed()`) so there is one answer, not two.
 5. **Sync:** the SMS session's DB changes reach this repo through the normal `npm run sync` of `database.types.ts` (§2.4). Nothing extra is needed.
 
 **Build order impact:** none on the critical path. Step 4.17 (Account/settings) ships
@@ -509,7 +513,7 @@ Then run `npm run sync` here.
 | D1 | `push_tokens` table: `id uuid pk`, `user_id uuid → auth.users on delete cascade`, `token text unique not null`, `platform text check in ('ios','android')`, `app_version text`, `created_at`, `last_seen_at`, `disabled_at` | migration | RLS on. Own-row `select`/`delete` only, no insert/update policy. Writes go through D2. Revoke `TRUNCATE` from anon/authenticated (web convention). |
 | D2 | `register_push_token(p_token, p_platform, p_app_version)` and `unregister_push_token(p_token)` | RPC, `SECURITY DEFINER` | **Test `auth.uid() is null` first.** Upsert on `token`, **reassigning** it to the caller (one phone, two accounts → the token follows whoever is signed in). `set search_path = public, extensions, pg_temp`. `revoke … from public, anon`; grant `authenticated`. **Verify via `pg_proc.proacl`, not the migration.** Rate-limit like other user writes. |
 | D3 | `app_config()` + `min_app_version` setting | RPC (anon-readable) + data | Read-only; no PII. |
-| D4 | `push_suppressed(p_type text) returns boolean` = `outbound_paused() and p_type = any(array['job_in_field','job_still_open','job_reopened','seasonal','vetting_reminder','contractor_guide'])` | SQL function (`stable`) | §5 pause split. Grant to `service_role` only (only the edge emitter calls it). Probe it: flip the mode inside a rolled-back transaction and assert both a broadcast type and a job type. |
+| D4 | `notify_suppressed(p_type text) returns boolean` | ✅ **Done 2026-11-22 by the SMS session** (web `20261122_notify_suppressed.sql`, commit `edcd3a3`), shared by SMS and push under that name | Push (E1) only calls it. Re-verify the array still matches §5 before 6.2. |
 | E1 | `_shared/push.ts`; push leg in `send-notification` and `notify-message` | edge | Read the deployed source first. A new host `exp.host` → `check_legal.py` + Privacy §6.2 in the same ship. Every send asks D4 first; chat sends need no D4 check because chat is always under way. |
 | E2 | `return: "web" \| "app"` enum on the 4 charge functions + `create-connect-account` | edge, **money** | §6.2. `freddy-payment-change` gate; no guard touched. Deployed source first. |
 | E3 | Apple token revoke in `delete-account` | edge | §4.5. A new host `appleid.apple.com` → legal entries. New secrets. |
@@ -527,6 +531,14 @@ list. Each step is a separate PR with **one concern** (the web rule). Each Opus 
 leaves behind the pattern its Sonnet siblings copy. **Each phase ends at a review gate (§8a)
 before its PR merges.**
 
+### Progress
+
+| Date | Done | PR |
+|---|---|---|
+| 2026-11-22 | Phase 1 (1.1–1.5) and the first half of Phase 2: tokens/theme (2.1), Button/ButtonRow/Stack (2.2), Ic (2.3), Pill + StateLine (2.4), Group/Card/Row (2.5), Screen/DashCard (2.8), DeadEnd (2.9), KitLab (2.11). Review-gate configs (§8a). | `phase-1/foundation` |
+| (next) | Rest of Phase 2: Pass/Hero (2.6), Stepper/AttentionCard/JobSwitcher (2.7), Skeleton/Toast/ScreenHeader (2.8), bottom Sheet + ConfirmDialog (2.10). Then **G2**. | |
+| (waiting) | **Phase 0** (web prereqs W1–W3). Not done here: web changes ship through the owner's `ship.py` installer from the mounted folder (desktop app), which this cloud session can't reach. Only needed from Phase 4. | |
+
 ### Phase 0: web-repo prerequisites (ship in the web repo)
 | Step | Work | Model |
 |---|---|---|
@@ -541,7 +553,7 @@ before its PR merges.**
 | 1.1 | Expo scaffold (current stable SDK, TS strict, Expo Router), `app.config.ts`, `eas.json` (development / preview / production), bundle IDs `ca.freddyfixit.app`; **mobile `CLAUDE.md`** with §0 rules | Opus |
 | 1.2 | `scripts/sync-shared.mjs` + `check-shared.mjs` + `shared.lock.json` + CI (typecheck, lint, check-shared, nightly-sync) + the review gates of §8a (`check-rules`, `check-mounts`, `.coderabbit.yaml`, `phase-gate.yml`) | Opus |
 | 1.3 | Native overrides: `supabase.ts` (LargeSecureStore, PKCE, AppState refresh), `bus.ts`, `platform/storage.ts` | Opus |
-| 1.4 | Remaining overrides: `theme`, `requestDraft`, `referralCode`, `terms`, `reviewPrompt`, `referralPrompt`, `completionPrompt`, `analytics` no-op | Sonnet |
+| 1.4 | `theme` + `analytics` no-op overrides. The other six storage-backed overrides (`requestDraft`, `referralCode`, `terms`, `reviewPrompt`, `referralPrompt`, `completionPrompt`, ~800 web lines) are **ported with the step that first calls them** (4.3, 4.4, 4.13), so each is tested against a real caller. `terms` is a legal record. | Sonnet |
 | 1.5 | `imageCompress` override + `platform/upload.ts` (picker → compress → `storage.upload` ArrayBuffer → `scan-image`; HEIC fallback; original-on-failure) | Opus |
 
 ### Phase 2: native kit
@@ -616,7 +628,7 @@ before its PR merges.**
 ### Phase 6: push
 | Step | Work | Model |
 |---|---|---|
-| 6.1 | D1 + D2 + D4 migration, probes (including the pause split), types regen, sync | Opus |
+| 6.1 | D1 + D2 migration, probes (and re-probe the pause split through `notify_suppressed`), types regen, sync | Opus |
 | 6.2 | E1 `_shared/push.ts` + `send-notification` + `notify-message` legs + legal entries | Opus |
 | 6.3 | App: permission timing, token register on launch, Android channels | Opus |
 | 6.4 | Tap routing through `noteTarget` → `links.ts`; foreground banner behaviour | Sonnet |
@@ -709,7 +721,7 @@ Layers 2–3 run at the checkpoints.
 | G4c | Rest of Phase 4 | 1 + 2 + 3 | Sonnet | chat realtime unsubscribes; blocked messages hidden; account deletion shows the server reason |
 | G5a | Steps 5.2–5.3 (contractor onboarding + Stripe Connect) | 1 + 2 + 3 | **Opus** | documents use the `document` compress profile; Connect return re-reads `stripe_payouts_enabled` and never assumes |
 | G5b | Rest of Phase 5 | 1 + 2 + 3 | Sonnet | attention `else if` order; `photosMissing`/`canWithdraw` imported, not re-derived; commission from `platformRates` |
-| G6 | Phase 6 push (DB + edge + app) | 1 + 2 + 3 + rolled-back probe of `push_suppressed` + `pg_proc.proacl` read | **Opus** | null-guard first in D2; grants verified live, not from the migration; broadcast set matches §5; push/SMS de-duplication agreed with the SMS session (§5a); no message text or amounts in payloads; `check_legal.py` entry present |
+| G6 | Phase 6 push (DB + edge + app) | 1 + 2 + 3 + rolled-back probe of `notify_suppressed` + `pg_proc.proacl` read | **Opus** | null-guard first in D2; grants verified live, not from the migration; broadcast set matches §5; push/SMS de-duplication agreed with the SMS session (§5a); no message text or amounts in payloads; `check_legal.py` entry present |
 | G7 | Phase 7 release | 1 + 2 + 3 + device test 7.5 | **Opus** | E2 accepts the enum only (no URL from the body); payout guards untouched (stated in the PR); store privacy labels match Privacy Policy §6.2 |
 
 **What the owner does at each gate**, in plain steps:
@@ -731,7 +743,7 @@ the same rule as the web repo's monitoring.
 
 | Decision | Outcome | Where it lands |
 |---|---|---|
-| Push while paused / on the waitlist | **Split.** Work under way keeps pushing (chat, payments, scheduling, visits, price changes, completion, disputes). Broadcasts (field-wide job offers, seasonal, onboarding nudges) are silenced like email. | §5 pause split, D4 `push_suppressed()`, step 6.1 |
+| Push while paused / on the waitlist | **Split.** Work under way keeps pushing (chat, payments, scheduling, visits, price changes, completion, disputes). Broadcasts (field-wide job offers, seasonal, onboarding nudges) are silenced like email. | §5 pause split, D4 `notify_suppressed()`, step 6.1 |
 | Website + app in one repo | **Not now.** Revisit after launch. | §2.1, step 8.2 |
 | Analytics in the app | **None at launch** (`analytics.ts` no-op). After launch, optionally PostHog behind a consent prompt to track app signups from social. | §2.2, step 8.1 |
 | Store accounts | **Owned by the business.** Request the D-U-N-S number now. | Phase 7 owner row |

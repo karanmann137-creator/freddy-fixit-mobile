@@ -1,0 +1,41 @@
+# Layer 2 of the review gates (PLAN.md §8a). Free on a public repo.
+# Manual only: comment `@coderabbitai review` on the PR that closes a phase.
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  auto_review:
+    enabled: false
+  path_filters:
+    - "!src/lib/*.generated.ts"
+    - "!src/kit/*.generated.ts"
+    - "!shared.lock.json"
+    - "!package-lock.json"
+  path_instructions:
+    - path: "src/**"
+      instructions: >-
+        Files whose first line starts with "// SYNCED from" are copies of the web repo
+        (karanmann137-creator/freddy-fixit) and are reviewed there; skip them.
+        Rules from CLAUDE.md: readAuthUser() has three outcomes (user / signedOut / unknown), so never
+        treat a failed read as signed-out or empty; .maybeSingle() not .single(); no Supabase query
+        inside onAuthStateChange; every dead end renders DeadEnd with a way out; no colour or spacing
+        literals outside src/kit (tokens); orange (primary/turn) at most once per screen.
+    - path: "src/features/{job,payments}/**"
+      instructions: >-
+        Money. The app never computes a charge, fee or payout: amounts come from the server
+        (get_job_fee, jobFunding.ts). Mirror the web pay gates (PLAN.md §6.3): contractBlocked starts
+        true; HTTP 428 reason surfaced from error.context; a payment return URL is never proof of
+        payment, only the job row is. Flag any arithmetic on money.
+    - path: "src/features/auth/**"
+      instructions: >-
+        PLAN.md §4: three-outcome readAuthUser; no queries in onAuthStateChange; the established role
+        wins on every branch (never demote admin or contractor); setMyRole() is the only role write;
+        Google sign-in shows the account chooser on the sign-in surface only.
+    - path: "src/app/**"
+      instructions: "Route files stay thin: read params, render a screen from src/features. No data fetching here."
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "CLAUDE.md"
+      - "PLAN.md"
