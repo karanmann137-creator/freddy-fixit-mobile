@@ -498,7 +498,8 @@ Then run `npm run sync` here.
 **Opus** = complex: new pattern, money, auth, realtime, or a ported page over ~800 web
 lines with load-bearing rules. **Sonnet** = follows an existing pattern set earlier in this
 list. Each step is a separate PR with **one concern** (the web rule). Each Opus step
-leaves behind the pattern its Sonnet siblings copy.
+leaves behind the pattern its Sonnet siblings copy. **Each phase ends at a review gate (§8a)
+before its PR merges.**
 
 ### Phase 0: web-repo prerequisites (ship in the web repo)
 | Step | Work | Model |
@@ -512,7 +513,7 @@ leaves behind the pattern its Sonnet siblings copy.
 | Step | Work | Model |
 |---|---|---|
 | 1.1 | Expo scaffold (current stable SDK, TS strict, Expo Router), `app.config.ts`, `eas.json` (development / preview / production), bundle IDs `ca.freddyfixit.app`; **mobile `CLAUDE.md`** with §0 rules | Opus |
-| 1.2 | `scripts/sync-shared.mjs` + `check-shared.mjs` + `shared.lock.json` + CI (typecheck, lint, check-shared, nightly-sync) | Opus |
+| 1.2 | `scripts/sync-shared.mjs` + `check-shared.mjs` + `shared.lock.json` + CI (typecheck, lint, check-shared, nightly-sync) + the review gates of §8a (`check-rules`, `check-mounts`, `.coderabbit.yaml`, `phase-gate.yml`) | Opus |
 | 1.3 | Native overrides: `supabase.ts` (LargeSecureStore, PKCE, AppState refresh), `bus.ts`, `platform/storage.ts` | Opus |
 | 1.4 | Remaining overrides: `theme`, `requestDraft`, `referralCode`, `terms`, `reviewPrompt`, `referralPrompt`, `completionPrompt`, `analytics` no-op | Sonnet |
 | 1.5 | `imageCompress` override + `platform/upload.ts` (picker → compress → `storage.upload` ArrayBuffer → `scan-image`; HEIC fallback; original-on-failure) | Opus |
@@ -614,6 +615,90 @@ screen with payment is where the app either works or doesn't, so get to it early
 leave the polish tabs for later.
 
 ---
+
+## 8a. Review gates: a cheap check after every major part
+
+**Goal (owner, 2026-11-22):** something independent checks the work at the end of every
+major part, before it merges. The reviewer must not be the session that wrote the code.
+Work never grades itself.
+
+**Three layers, cheapest first.** Each layer catches what the one before can't. That's the
+same "different shapes" idea as the web repo's four monitoring layers.
+
+| Layer | Runs | Cost | Catches | Blind to |
+|---|---|---|---|---|
+| **1. `npm run check`**: typecheck + lint + `check-shared` + `check-rules` + `check-mounts` | GitHub Actions on **every** push and PR | **$0** (public repo, free Actions minutes) | mechanical rule breaks (list below) | anything that needs judgement |
+| **2. CodeRabbit** (free tier) | **manually**: comment `@coderabbitai review` on the PR that closes a phase | **$0.** CodeRabbit reviews public repos free forever, and repos under 10 stars need a manual trigger, which is exactly when we want it | general bugs, React Native pitfalls, missing error handling, leaks, races, security smells | Freddy-specific rules it hasn't been told; a config file fixes most of that |
+| **3. Claude phase-gate review** (`anthropics/claude-code-action@v1`) | only when the owner adds the label **`phase-gate`** to a PR | Pay-per-use API tokens: **Sonnet**, capped at `--max-turns 15` and a 10-min timeout. Roughly the price of one short Sonnet session per phase | judgement against **this plan and §0**: "does this money screen mirror the web gates", "is the 428 handled", "is the established role kept on every branch" | runtime behaviour; only a device test (7.5) proves that |
+
+**Why not run CodeRabbit or Claude on every PR?** It costs nothing for CodeRabbit, but
+reviewing every small Sonnet step creates noise the owner learns to ignore. The web repo's
+rule is "a gate that cries wolf is a gate someone learns to skip". Layer 1 runs always.
+Layers 2–3 run at the checkpoints.
+
+### Layer 1: what `check-rules.mjs` / `check-mounts.mjs` enforce (written in step 1.2, grown as phases land)
+- No `.single(` anywhere. Use `.maybeSingle()`.
+- No `as any` on a `supabase.from(` / `.rpc(` / `functions.invoke(` expression.
+- No colour literal (`#rrggbb`, `rgb(`) outside `src/kit/tokens.generated.ts`.
+- No `0.93` / `0.07` / `0.40` / `0.03` money literals in `src/` (rates come from `platformRates.ts` / `get_job_fee`).
+- No `window.`, `document.`, `localStorage` outside `src/lib/*` synced files, and no call to the banned `notificationRoutes` URL helpers.
+- No supabase call inside an `onAuthStateChange` callback (AST check, not grep).
+- The word "escrow" never appears in user-facing strings.
+- `DeadEnd` is never rendered with `retry={false}` and no `alt`. The type already enforces it; the check catches a cast around the type.
+- **Mounts whose absence is silent** (the web `check_mounts.py` membership rule):
+  - `<ContractPanel` in the client and contractor job-detail screens.
+  - `<ConfirmDialog` and `<Toast` in `app/_layout.tsx`.
+  - The update gate in the root layout.
+  - Every `DeadEnd` branch of the root gate.
+
+  A `MIN_COUNTS` table catches one of two identical mounts going missing.
+- Synced files are unchanged (`check-shared`).
+
+### Layer 2: CodeRabbit setup (one-time, step 1.2)
+- Install the CodeRabbit GitHub App on `freddy-fixit-mobile` only.
+- Commit `.coderabbit.yaml`:
+  - `reviews.auto_review.enabled: false` (manual only).
+  - `path_filters` excludes `src/lib/**` synced files, `*.generated.ts` and `shared.lock.json`. Those are reviewed in the web repo, and re-reviewing them is pure noise.
+  - `path_instructions`: for `src/features/job/**` and `src/features/payments/**`, "never compute money; amounts come from the server; mirror the gates in PLAN.md §6.3". For `src/features/auth/**`, "PLAN.md §4: three-outcome `readAuthUser`, no queries in `onAuthStateChange`, established role wins". For `app/**`, "route files stay thin".
+  - Point its code-guidelines setting at `CLAUDE.md` and `PLAN.md`.
+- The owner's only action is to comment `@coderabbitai review` on the phase PR, then read the summary.
+
+### Layer 3: Claude phase-gate workflow (one-time, step 1.2)
+- `.github/workflows/phase-gate.yml` triggers on `pull_request: types: [labeled]` with `if: github.event.label.name == 'phase-gate'`. It runs `claude-code-action@v1` with model Sonnet, a turn cap and a timeout. The secret is `ANTHROPIC_API_KEY` (or a Claude Code OAuth token).
+- **Public-repo safety:** a label can only be added by someone with write access. Fork PRs get no secrets, so a stranger's PR cannot spend the key. The job runs with `contents: read`, `pull-requests: write` and nothing else, and it only comments. It never pushes or merges.
+- The prompt is fixed in the workflow, not taken from the PR body: *"You are reviewing PR #N, which closes Phase X of PLAN.md. Read PLAN.md §0 and the Phase X rows plus the sections they cite. For each step in Phase X, report PASS / FAIL / NOT-VERIFIABLE with file:line evidence. Check especially: [phase checklist below]. Report only defects, no style notes. End with a one-line verdict the owner can act on: MERGE, FIX FIRST (list), or NEEDS A DEVICE TEST (list)."*
+- **Opus only where a wrong answer costs money or locks people out.** Add `model: opus` to the gates marked **(Opus)** in the table below. Everything else uses Sonnet.
+
+### When each gate fires ("major portion" = these checkpoints)
+
+| Gate | After | Layers | Reviewer model | What the phase checklist must confirm |
+|---|---|---|---|---|
+| G0 | Phase 0 (web repo) | web's own `ship.py` gates + **CodeRabbit CLI** on the diff (the web ships straight to `main` with no PR, so the app can't run there) + `freddy-payment-change` for W1 | — | predicates moved byte-identical with re-exports; `check_mounts.py` green; `/auth/confirm` proven with a real inbox **before** templates change |
+| G1 | Phase 1 foundation | 1 + 2 + 3 | Sonnet | sync is reproducible from the lock; overrides match web export signatures; session storage is encrypted; no secrets committed |
+| G2 | Phase 2 kit | 1 + 2 + 3 | Sonnet | every value from tokens; 48dp targets; orange only through `StateLine`/primary; reduced motion honoured; `KitLab` excluded from prod |
+| G3 | Phase 3 auth | 1 + 2 + 3 | **Opus** | the §4.2 gate's three outcomes; Google select-account asymmetry; Apple nonce + first-name write; choose-role never demotes; deep links verify `token_hash`; sign-out unregisters push first |
+| G4a | Steps 4.1–4.6 (client requests and signup) | 1 + 2 + 3 | Sonnet | failed read ≠ empty; `requestDraft` and referral at signup; pick screen compares ids, not RLS |
+| G4b | Steps 4.7–4.9 + 4.15 (**client money**) | 1 + 2 + 3, then `freddy-money-test` | **Opus** | `contractBlocked` starts true; 428 reason surfaced; return URL never treated as payment proof; no amount computed on the client; `ContractPanel` on every render branch |
+| G4c | Rest of Phase 4 | 1 + 2 + 3 | Sonnet | chat realtime unsubscribes; blocked messages hidden; account deletion shows the server reason |
+| G5a | Steps 5.2–5.3 (contractor onboarding + Stripe Connect) | 1 + 2 + 3 | **Opus** | documents use the `document` compress profile; Connect return re-reads `stripe_payouts_enabled` and never assumes |
+| G5b | Rest of Phase 5 | 1 + 2 + 3 | Sonnet | attention `else if` order; `photosMissing`/`canWithdraw` imported, not re-derived; commission from `platformRates` |
+| G6 | Phase 6 push (DB + edge + app) | 1 + 2 + 3 + rolled-back probe of `push_suppressed` + `pg_proc.proacl` read | **Opus** | null-guard first in D2; grants verified live, not from the migration; broadcast set matches §5; no message text or amounts in payloads; `check_legal.py` entry present |
+| G7 | Phase 7 release | 1 + 2 + 3 + device test 7.5 | **Opus** | E2 accepts the enum only (no URL from the body); payout guards untouched (stated in the PR); store privacy labels match Privacy Policy §6.2 |
+
+**What the owner does at each gate**, in plain steps:
+1. Open the phase PR.
+2. Comment `@coderabbitai review`.
+3. Add the label `phase-gate`.
+4. Wait for both comments.
+5. Merge if the Claude verdict says MERGE and CodeRabbit lists nothing marked critical. Otherwise paste both comments into the next build session as its task.
+
+**Fixes are a new commit on the same PR, then re-run the gate.** A gate that is waived once
+is a gate that's off.
+
+**Cost guard.** If a Claude gate run hits its turn cap without a verdict, it posts "NOT
+VERIFIED: split the PR" instead of a guess. Phases 4 and 5 are deliberately split into
+G4a–c and G5a–b so no single review exceeds the cap. A failed review is never a pass:
+the same rule as the web repo's monitoring.
 
 ## 9. Decisions (owner, 2026-11-22)
 
