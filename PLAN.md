@@ -390,6 +390,32 @@ use". Add it only once push volume is non-zero and tickets show failures.
 
 ---
 
+## 5a. ⚠️ SMS: not set up yet, coming soon (built in a separate session)
+
+**Status at 2026-11-22.** SMS is **being built in another session. This plan does not
+build it** and must not duplicate it.
+- **What exists in the web repo** is only the gate half, from migration `20261119_sms_consent_and_caps.sql`:
+  - tables `sms_consent` and `sms_log`
+  - functions `sms_send_allowed`, `sms_set_opt_in`, `sms_status`, `sms_record_opt_out` and the volume caps
+  - the kill switch `sms_enabled` (default **false**)
+  - the legal clock `sms_effective_date = 2026-12-03`
+- **What does not exist yet:** the `send-sms` / `sms-inbound` edge functions, and any UI.
+- **Today the app sends no SMS and shows no SMS controls.**
+
+**What the app leaves room for, so SMS drops in without rework:**
+1. **One opt-in toggle in Account → Settings** ("Text me about my jobs"). It calls the web's `sms_set_opt_in` / `sms_status` RPCs once they're final, and stays hidden until `sms_status` says SMS is live. **Build it only after the SMS session ships**, then copy that session's consent wording and flow exactly. Consent text is a legal record (CASL); the app must not word it differently from the web.
+2. **No SMS logic in the app, ever.** Sending, caps, opt-out (STOP) and the pause all live server-side in `send-sms`, which is the only holder of a Twilio credential, as the migration states. The app only reads and writes consent.
+3. **The Twilio host is server-side only**, so the app needs no `check_legal.py` or privacy-label change for it. The store privacy labels still list "phone number → used for notifications" once SMS is live.
+4. **Resolve before push ships (Phase 6), with the SMS session:** how push and SMS share a notification so a person doesn't get **both** for one event. The suggested rule, for the SMS session to confirm or replace: SMS only for types that matter mid-job, and only when the recipient has **no enabled `push_tokens` row**. That keeps SMS cost and caps low, and it needs only a read of D1 from `send-sms`. The pause split in §5 should apply to SMS identically. Reuse the same `push_suppressed()` broadcast set (or rename it `notify_suppressed()`) so there is one answer, not two.
+5. **Sync:** the SMS session's DB changes reach this repo through the normal `npm run sync` of `database.types.ts` (§2.4). Nothing extra is needed.
+
+**Build order impact:** none on the critical path. Step 4.17 (Account/settings) ships
+without the SMS toggle. A follow-up step, **4.17b SMS opt-in toggle (Sonnet)**, runs after
+the SMS session lands. Gate G6 adds one checklist item: "push/SMS de-duplication rule
+agreed and implemented on the server".
+
+---
+
 ## 6. Payments design
 
 ### 6.1 Decision: keep Stripe Checkout, opened in the system browser sheet
@@ -566,7 +592,8 @@ before its PR merges.**
 | 4.14 | Pros tab (`list_my_pros`, rehire) | Sonnet |
 | 4.15 | Recurring plans + prepay pool (`create-recurring-prepayment`, `return:"app"`) | Opus |
 | 4.16 | History | Sonnet |
-| 4.17 | Account: profile, settings (theme, text size), two-step panel, legal links, help/report a problem | Sonnet |
+| 4.17 | Account: profile, settings (theme, text size), two-step panel, legal links, help/report a problem (**no SMS toggle yet**, see §5a) | Sonnet |
+| 4.17b | SMS opt-in toggle, **after the separate SMS session ships** (§5a); copy its consent wording exactly | Sonnet |
 | 4.18 | Delete account (incl. Apple revoke re-prompt) | Opus |
 | 4.19 | Notifications list (bell) + `noteTarget` routing | Sonnet |
 
@@ -682,7 +709,7 @@ Layers 2–3 run at the checkpoints.
 | G4c | Rest of Phase 4 | 1 + 2 + 3 | Sonnet | chat realtime unsubscribes; blocked messages hidden; account deletion shows the server reason |
 | G5a | Steps 5.2–5.3 (contractor onboarding + Stripe Connect) | 1 + 2 + 3 | **Opus** | documents use the `document` compress profile; Connect return re-reads `stripe_payouts_enabled` and never assumes |
 | G5b | Rest of Phase 5 | 1 + 2 + 3 | Sonnet | attention `else if` order; `photosMissing`/`canWithdraw` imported, not re-derived; commission from `platformRates` |
-| G6 | Phase 6 push (DB + edge + app) | 1 + 2 + 3 + rolled-back probe of `push_suppressed` + `pg_proc.proacl` read | **Opus** | null-guard first in D2; grants verified live, not from the migration; broadcast set matches §5; no message text or amounts in payloads; `check_legal.py` entry present |
+| G6 | Phase 6 push (DB + edge + app) | 1 + 2 + 3 + rolled-back probe of `push_suppressed` + `pg_proc.proacl` read | **Opus** | null-guard first in D2; grants verified live, not from the migration; broadcast set matches §5; push/SMS de-duplication agreed with the SMS session (§5a); no message text or amounts in payloads; `check_legal.py` entry present |
 | G7 | Phase 7 release | 1 + 2 + 3 + device test 7.5 | **Opus** | E2 accepts the enum only (no URL from the body); payout guards untouched (stated in the PR); store privacy labels match Privacy Policy §6.2 |
 
 **What the owner does at each gate**, in plain steps:
@@ -709,4 +736,6 @@ the same rule as the web repo's monitoring.
 | Analytics in the app | **None at launch** (`analytics.ts` no-op). After launch, optionally PostHog behind a consent prompt to track app signups from social. | §2.2, step 8.1 |
 | Store accounts | **Owned by the business.** Request the D-U-N-S number now. | Phase 7 owner row |
 
-No open decisions remain. The next step is Phase 0 in the web repo.
+| SMS | **Being built in a separate session; not part of this build yet.** The app leaves room for an opt-in toggle (4.17b). The push/SMS de-duplication rule is agreed with that session before Phase 6. | §5a |
+
+One item is pending on the SMS session (§5a, point 4). Otherwise no open decisions remain. The next step is Phase 0 in the web repo.
