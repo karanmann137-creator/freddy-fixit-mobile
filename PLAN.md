@@ -355,7 +355,20 @@ push leg:
 - `supabase/functions/_shared/push.ts`: `sendPush(userIds, { title, body, data:{type, job_id}, channelId, threadId })`. It reads enabled `push_tokens` and posts in batches of 100. A ticket error of `DeviceNotRegistered` disables that token immediately.
 - **`send-notification`** (fired by the DB webhook on every `public.notifications` INSERT) calls `sendPush` for **every** type, including the ones in `EMAIL_HANDLED_ELSEWHERE`. That set suppresses the *generic email*, not the bell, and push is the phone's bell. This keeps "one notification row → one push", with no second emitter to hunt for.
 - **`notify-message`** (chat) calls `sendPush` for the recipient. It does this **before** and independent of the 15-minute `message_email_log` email throttle. Collapse per thread with `threadId`/`tag`, so a burst replaces one banner instead of stacking ten. It returns early on `NEW.blocked`, as now, so a blocked message can't push either.
-- **Pause switch.** Push follows the **bell**, so it survives `outbound_paused()`. It goes only to signed-in users who opted in, and costs nothing, so it is not bulk email. **This is an owner decision; flag it before building.** If he wants push silenced in `paused`/`waitlist` mode, `sendPush` checks `outbound_paused()` itself (the web rule: the gate lives inside the emitter). Transactional types (payment receipts, auth) are exempt either way.
+- **Pause switch (owner decision, 2026-11-22): split by kind.** While `outbound_paused()` is true (`paused`/`waitlist`):
+  - **Pushes for work already under way keep going.** That covers every chat message (job and bid-stage threads), payments and balances, scheduling, visits, price changes, completion, disputes, contracts and reviews. People mid-job need them.
+  - **Broadcast pushes are silenced, the same as email.** These invite someone to start something new.
+
+  **One predicate decides it: `push_suppressed(p_type text) → boolean`** (SQL, D4). It returns `outbound_paused() AND p_type = any(<broadcast set>)`. `sendPush` calls it for every notification, so the gate lives inside the emitter (web rule: "a new `net.http_post` is a pause bypass unless it calls `outbound_paused()` itself"). The broadcast set is classified from today's types in `notificationRoutes.ts` and the `notify_user` callers:
+
+  | Silenced while paused (broadcast) | Always pushed (under way / addressed to one person) |
+  |---|---|
+  | `job_in_field`, `job_still_open`, `job_reopened` (field-wide job offers to pros) | `rehire_request`, `recurring_reserved`, `bid_declined`, `bid_received`, `bids_waiting`, `no_quotes_alert` (about the recipient's own request or bid) |
+  | `seasonal` (marketing nudge) | everything under `jobs` / `requests` / `recurring` / `earnings` / `reviews` in `notificationRoutes.ts`: scheduling, visits, money, price change, completion, disputes, milestones, contract |
+  | `vetting_reminder`, `contractor_guide` (onboarding nudges) | `application_approved`, `referral_rewarded`, `job_confirmed`, `review_received` |
+  | | all chat (`notify-message`) |
+
+  **An unknown type is pushed**, because a new type is far more likely to be job-scoped, and silencing a mid-job person is the worse failure. So **adding a broadcast type means adding it to `push_suppressed`'s set in the same ship.** Add that line to the web `docs/notifications-and-email.md` type checklist, next to "verify it has exactly one emitter". `set_platform_mode` needs no change because the predicate reads the mode live. Payment receipts and auth mail are email, not push, and stay ungated as now.
 
 **Privacy on the lock screen.**
 - Push bodies never carry message text, addresses, phone numbers or amounts. Chat pushes read "Mike sent you a message". Job pushes reuse the notification `title` only, plus "Open to see details".
@@ -470,7 +483,8 @@ Then run `npm run sync` here.
 | D1 | `push_tokens` table: `id uuid pk`, `user_id uuid → auth.users on delete cascade`, `token text unique not null`, `platform text check in ('ios','android')`, `app_version text`, `created_at`, `last_seen_at`, `disabled_at` | migration | RLS on. Own-row `select`/`delete` only, no insert/update policy. Writes go through D2. Revoke `TRUNCATE` from anon/authenticated (web convention). |
 | D2 | `register_push_token(p_token, p_platform, p_app_version)` and `unregister_push_token(p_token)` | RPC, `SECURITY DEFINER` | **Test `auth.uid() is null` first.** Upsert on `token`, **reassigning** it to the caller (one phone, two accounts → the token follows whoever is signed in). `set search_path = public, extensions, pg_temp`. `revoke … from public, anon`; grant `authenticated`. **Verify via `pg_proc.proacl`, not the migration.** Rate-limit like other user writes. |
 | D3 | `app_config()` + `min_app_version` setting | RPC (anon-readable) + data | Read-only; no PII. |
-| E1 | `_shared/push.ts`; push leg in `send-notification` and `notify-message` | edge | Read the deployed source first. A new host `exp.host` → `check_legal.py` + Privacy §6.2 in the same ship. Owner decision on the pause (§5). |
+| D4 | `push_suppressed(p_type text) returns boolean` = `outbound_paused() and p_type = any(array['job_in_field','job_still_open','job_reopened','seasonal','vetting_reminder','contractor_guide'])` | SQL function (`stable`) | §5 pause split. Grant to `service_role` only (only the edge emitter calls it). Probe it: flip the mode inside a rolled-back transaction and assert both a broadcast type and a job type. |
+| E1 | `_shared/push.ts`; push leg in `send-notification` and `notify-message` | edge | Read the deployed source first. A new host `exp.host` → `check_legal.py` + Privacy §6.2 in the same ship. Every send asks D4 first; chat sends need no D4 check because chat is always under way. |
 | E2 | `return: "web" \| "app"` enum on the 4 charge functions + `create-connect-account` | edge, **money** | §6.2. `freddy-payment-change` gate; no guard touched. Deployed source first. |
 | E3 | Apple token revoke in `delete-account` | edge | §4.5. A new host `appleid.apple.com` → legal entries. New secrets. |
 | A1 | Supabase Auth: enable Apple; add Google iOS/Android client IDs; skip-nonce for iOS Google; redirect allowlist `https://freddyfixit.ca/auth/confirm` (+ `freddyfixit://` for dev only) | dashboard (owner) | |
@@ -574,8 +588,8 @@ leaves behind the pattern its Sonnet siblings copy.
 ### Phase 6: push
 | Step | Work | Model |
 |---|---|---|
-| 6.1 | D1 + D2 migration, probes, types regen, sync | Opus |
-| 6.2 | E1 `_shared/push.ts` + `send-notification` + `notify-message` legs + legal entries (**after the owner's pause decision**) | Opus |
+| 6.1 | D1 + D2 + D4 migration, probes (including the pause split), types regen, sync | Opus |
+| 6.2 | E1 `_shared/push.ts` + `send-notification` + `notify-message` legs + legal entries | Opus |
 | 6.3 | App: permission timing, token register on launch, Android channels | Opus |
 | 6.4 | Tap routing through `noteTarget` → `links.ts`; foreground banner behaviour | Sonnet |
 
@@ -587,6 +601,13 @@ leaves behind the pattern its Sonnet siblings copy.
 | 7.3 | Store prep: icons/splash, privacy nutrition labels / Data safety form (matching Privacy Policy §6.2), review notes (3.1.3(e) physical services, demo accounts for both roles, Sign in with Apple present, account deletion location) | Sonnet |
 | 7.4 | E3 Apple revoke in `delete-account` (lands before 4.18) | Opus |
 | 7.5 | TestFlight / Play internal test: the owner runs both roles end to end on one real job; `freddy-money-test` against a real Checkout from the app | Opus |
+| — | **Owner, start now (longest lead time):** request the business's free **D-U-N-S number** from Dun & Bradstreet. Apple's *Organization* developer enrolment and a Google Play *organization* account both require one, and issuing it can take weeks. Then enrol both under the business's legal name (the store listing shows it), using a role inbox such as `hello@freddyfixit.ca` rather than a personal address. Phases 1–3 can run on a free dev build in the meantime; only TestFlight/Play testing (7.5) waits on the accounts. | — |
+
+### Phase 8: after launch (only if the owner asks)
+| Step | Work | Model |
+|---|---|---|
+| 8.1 | Analytics: replace the `analytics.ts` no-op with `posthog-react-native`, behind a first-run consent prompt (default off, same as the web's consent gating). Track `app_signup` with its `utm_*`/`ref` source. **Attribution limits to know before building:** a tap on a social link that opens an installed app via universal link carries its UTM parameters fine. A fresh **install** loses them on iOS unless the app uses Apple's ad-attribution APIs (and ATT for anything cross-app). Android can read them from the Play Install Referrer. A cheap workaround that works on both: send social traffic to a web landing page that stores the UTM against a referral code the user enters or deep-links in. Update the store privacy labels and Privacy Policy §6.2 (PostHog is already declared for the web) in the same ship. | Sonnet |
+| 8.2 | Revisit monorepo (§2.1) once both codebases are stable | Opus |
 
 **Critical path:** 0.1–0.2 → 1.1–1.3 → 2.1–2.2 → 3.1 → 7.1 → 4.7. The client job-detail
 screen with payment is where the app either works or doesn't, so get to it early and
@@ -594,9 +615,13 @@ leave the polish tabs for later.
 
 ---
 
-## 9. Open decisions for the owner
+## 9. Decisions (owner, 2026-11-22)
 
-1. **Push during `paused`/`waitlist` mode:** keep it like the bell (default in this plan), or silence it like email?
-2. **Monorepo later?** The vendored sync is the start (§2.1).
-3. **Analytics in the app:** none at launch (default), or PostHog with a consent prompt.
-4. **Apple developer account + Google Play console** are owned by the business, not a personal account. Store accounts are hard to transfer later.
+| Decision | Outcome | Where it lands |
+|---|---|---|
+| Push while paused / on the waitlist | **Split.** Work under way keeps pushing (chat, payments, scheduling, visits, price changes, completion, disputes). Broadcasts (field-wide job offers, seasonal, onboarding nudges) are silenced like email. | §5 pause split, D4 `push_suppressed()`, step 6.1 |
+| Website + app in one repo | **Not now.** Revisit after launch. | §2.1, step 8.2 |
+| Analytics in the app | **None at launch** (`analytics.ts` no-op). After launch, optionally PostHog behind a consent prompt to track app signups from social. | §2.2, step 8.1 |
+| Store accounts | **Owned by the business.** Request the D-U-N-S number now. | Phase 7 owner row |
+
+No open decisions remain. The next step is Phase 0 in the web repo.
