@@ -172,6 +172,17 @@ const MOUNTS = [
   { file: "src/features/client/data.tsx", needle: 'set({ kind: "error" })', min: 4, why: "a failed profile/requests read must render couldn't-load, never a confident 'no requests' (web loadError)" },
   { file: "src/features/client/RequestsScreen.tsx", needle: "<DeadEnd", min: 1, why: "the Requests tab's load-error branch: without it a failed read is a blank tab" },
   { file: "src/features/client/rules.ts", needle: 'kind === "error"', min: 1, why: "the pass must say 'couldn't check' on a failed job read, never guess a state" },
+  // Phase 4 step 4.17/4.19: Account and Notifications.
+  { file: "src/features/client/ReferralCard.tsx", needle: "takeReferralError()", min: 1, why: "the Requests tab's 'referral code didn't apply' row sends people here; without the read-and-clear the explanation never appears" },
+  { file: "src/features/client/ReferralCard.tsx", needle: "apply_referral_code", min: 1, why: "the enter-a-friend's-code box: without the call it is a button that does nothing" },
+  { file: "src/features/client/AccountScreen.tsx", needle: "<ReferralCard", min: 1, why: "the referral box (and the refused-code explanation) must be mounted on the Account tab" },
+  { file: "src/features/client/AccountScreen.tsx", needle: "<TwoStepCard", min: 1, why: "without it a person who turned two-step on has no way back out of it in the app" },
+  { file: "src/features/client/AccountScreen.tsx", needle: "signOut()", min: 1, why: "the only sign-out in the client app: without it nobody can leave an account on this phone" },
+  { file: "src/features/client/AccountScreen.tsx", needle: "clientNav(", min: 1, why: "History/Recurring rows must follow the same counts as web's nav, not be always-on or always-off" },
+  { file: "src/features/client/RequestsScreen.tsx", needle: 'label="Notifications"', min: 1, why: "the bell on the Requests pass: without it the notifications list is unreachable, with no error" },
+  { file: "src/features/client/NotificationsScreen.tsx", needle: "noteTarget(", min: 1, why: "a tapped notification must land where the web bell sends it" },
+  { file: "src/features/client/NotificationsScreen.tsx", needle: "<DeadEnd", min: 2, why: "a failed notifications read must say couldn't load, never 'you're all caught up'" },
+  { file: "src/features/client/NotificationsScreen.tsx", needle: 'read_at: now', min: 2, why: "tapping a notification and 'Mark all read' must write read_at, or the badge never clears" },
 ];
 for (const m of MOUNTS) {
   let text = "";
