@@ -76,5 +76,6 @@ export const secureSession = {
     try { await attempt(); } catch {
       await attempt(); // one retry; a second failure throws so sign-out can't report a success it didn't have
     }
+    generation++; // again AFTER the disk is clear: a read that began mid-removal can't cache the old blob either
   },
 };
