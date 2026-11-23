@@ -56,6 +56,7 @@ function ProfileCard() {
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "" });
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [mailed, setMailed] = useState(false);
   const [error, setError] = useState("");
   if (!data) return null;
 
@@ -83,7 +84,9 @@ function ProfileCard() {
       // A zero-row update throws nothing: check it, or "Saved" would be a lie.
       if (!rows || rows.length === 0) throw new Error("Could not save your changes. Please try again.");
       // Confirmation email: never let an email hiccup block the save.
-      try { await supabase.functions.invoke("profile-updated", { body: { changed: ["name", "phone"] } }); } catch { /* not blocking */ }
+      let sent = false;
+      try { const { error: mailErr } = await supabase.functions.invoke("profile-updated", { body: { changed: ["name", "phone"] } }); sent = !mailErr; } catch { /* not blocking: the save already succeeded */ }
+      setMailed(sent);
       setSaved(true);
       setEditing(false);
       await reload();
@@ -106,7 +109,7 @@ function ProfileCard() {
           <Txt size={0.82} color={rgba(t.muted, 0.9)} numberOfLines={2}>{email}{p.phone ? " · " + p.phone : ""}</Txt>
         </View>
       </View>
-      {saved && !editing ? <FormNote tone="good">Saved. We have emailed you a confirmation.</FormNote> : null}
+      {saved && !editing ? <FormNote tone="good">{mailed ? "Saved. We have emailed you a confirmation." : "Saved."}</FormNote> : null}
       {editing ? (
         <View>
           <Field label="First name" value={form.firstName} onChangeText={(v) => setF("firstName", v)} placeholder="First name" autoComplete="given-name" textContentType="givenName" />

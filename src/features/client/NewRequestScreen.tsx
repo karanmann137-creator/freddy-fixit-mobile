@@ -327,7 +327,7 @@ function NewRequestForm({ ctx, draft, restored, onStartOver, proParam, servicePa
       {preferredPro ? (
         <View style={{ marginBottom: t.s4, padding: t.s4, gap: t.s2, borderRadius: t.r3, borderWidth: ui.line, borderColor: rgba(t.accentRgb, 0.4), backgroundColor: rgba(t.accentRgb, 0.07) }}>
           <View style={{ flexDirection: "row", gap: t.s2 }}>
-            <Ic name="star" size={ui.icon.md} color={t.accent500} />
+            <Ic name="star" size={ui.icon.md} color={t.text} />
             <Txt size={0.86} lh={1.5} style={{ flex: 1 }}>
               {chosenPro
                 ? "This request goes to " + (chosenPro.company_name || chosenPro.name || "your pro") + " first — they'll be notified directly to send you an estimate."

@@ -1,5 +1,6 @@
 // Client tabs (PLAN step 4.1): Requests / Messages / Pros / Account.
-// Which tabs show is clientNav() (port of web visibleNav): Pros appears past 3.
+// Which tabs show is clientNav() (port of web visibleNav): Pros from the first pro,
+// and also when the pros read failed, so its couldn't-load row is reachable.
 // The active tab is the text colour, never orange (orange means "it's on you").
 import React from "react";
 import { Tabs } from "expo-router";
@@ -31,7 +32,7 @@ export default function ClientTabs() {
     >
       <Tabs.Screen name="index" options={{ title: "Requests", tabBarIcon: tabIcon("clipboard-list") }} />
       <Tabs.Screen name="messages" options={{ title: "Messages", tabBarIcon: tabIcon("message-square") }} />
-      <Tabs.Screen name="pros" options={{ title: "My Pros", tabBarIcon: tabIcon("user-check"), href: nav.pros ? undefined : null }} />
+      <Tabs.Screen name="pros" options={{ title: "My Pros", tabBarIcon: tabIcon("user-check"), href: nav.pros || d?.prosFailed ? undefined : null }} />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: tabIcon("user") }} />
     </Tabs>
   );

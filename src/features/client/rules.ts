@@ -6,11 +6,12 @@ import type { IconName, RowTone, State } from "@/kit";
 import { jobIsLive } from "@/lib/jobStage";
 
 // ── Tabs (web visibleNav, ClientDashboard.tsx:116) ─────────────────────────────
-// My Pros appears only past 3 (up to 3 already show on the home tab on web; the
-// app keeps the same threshold so both clients agree). Recurring and History are
-// not tabs on a phone: they are Account rows, shown by the same counts.
+// Web shows My Pros only past 3 because up to 3 already render as a strip on its
+// home tab. The app's Requests tab has no strip, so the app shows the tab from the
+// first pro (PLAN 4.1: "hidden when 0"); with the web threshold, 1-3 pros would be
+// unreachable (review G4a round 2). Recurring and History are Account rows.
 export function clientNav(o: { pros: number; plans: number; past: number }) {
-  return { pros: o.pros > 3, recurring: o.plans > 0, history: o.past > 0 };
+  return { pros: o.pros > 0, recurring: o.plans > 0, history: o.past > 0 };
 }
 
 export const isPastRequest = (r: any) => r?.status === "completed" || r?.status === "cancelled";

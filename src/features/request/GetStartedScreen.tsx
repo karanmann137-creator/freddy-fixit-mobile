@@ -338,7 +338,7 @@ function SignupForm({ draft, restored, onStartOver, initialRef, serviceParam }: 
         <View style={{ alignItems: "center", paddingTop: t.s8 }}>
           <Badge icon="mail" />
           <Txt variant="label" size={2.4} ls={0.06} accessibilityRole="header" style={{ marginTop: t.s5 }}>
-            Check Your <Txt variant="label" size={2.4} ls={0.06} color={t.accent500}>Email</Txt>
+            Check Your <Txt variant="label" size={2.4} ls={0.06} color={t.text}>Email</Txt>
           </Txt>
           <Txt lh={1.6} color={rgba(t.muted, 0.75)} style={{ textAlign: "center", marginTop: t.s2 }}>
             {"We sent a confirmation link to "}<Txt variant="bodyBold">{form.email}</Txt>{". Click it to activate your account."}
@@ -359,7 +359,7 @@ function SignupForm({ draft, restored, onStartOver, initialRef, serviceParam }: 
         <View style={{ alignItems: "center", paddingTop: t.s8 }}>
           <Badge icon="check" />
           <Txt variant="label" size={2.6} ls={0.06} accessibilityRole="header" style={{ marginTop: t.s5 }}>
-            Request <Txt variant="label" size={2.6} ls={0.06} color={t.accent500}>Received!</Txt>
+            Request <Txt variant="label" size={2.6} ls={0.06} color={t.text}>Received!</Txt>
           </Txt>
           <Txt color={rgba(t.muted, 0.7)} style={{ marginTop: t.s2 }}>We’ll be in touch within a few hours.</Txt>
         </View>
@@ -375,7 +375,7 @@ function SignupForm({ draft, restored, onStartOver, initialRef, serviceParam }: 
             </Txt>
             <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3, marginTop: t.s4, flexWrap: "wrap" }}>
               <View style={{ paddingHorizontal: t.s4, paddingVertical: t.s1, borderRadius: t.r2, borderWidth: ui.line, borderStyle: "dashed", borderColor: rgba(t.accentRgb, 0.5) }}>
-                <Txt variant="label" size={1.6} ls={0.12} color={t.accent500} selectable>{referral}</Txt>
+                <Txt variant="label" size={1.6} ls={0.12} color={t.text} selectable>{referral}</Txt>
               </View>
               <Button onPress={() => share(referral)}>Share code</Button>
             </View>
@@ -504,7 +504,7 @@ function Badge({ icon }: { icon: "mail" | "check" }) {
   return (
     <View style={{ width: ui.photoTile, height: ui.photoTile, borderRadius: ui.pill, alignItems: "center", justifyContent: "center",
       backgroundColor: rgba(t.accentRgb, 0.15), borderWidth: ui.edge, borderColor: rgba(t.accentRgb, 0.4) }}>
-      <Ic name={icon} size={ui.icon.xl * 1.6} color={t.accent500} />
+      <Ic name={icon} size={ui.icon.xl * 1.6} color={t.text} />
     </View>
   );
 }
