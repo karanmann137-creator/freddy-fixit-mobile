@@ -158,7 +158,7 @@ const MOUNTS = [
   { file: "src/app/_layout.tsx", needle: "SplashScreen.hideAsync", min: 1, why: "without it the app sits on the splash forever, with no error" },
   { file: "src/app/_layout.tsx", needle: "fontError", min: 1, why: "a font that fails to load must not hold the splash" },
   { file: "src/app/_layout.tsx", needle: "<ConfirmHost", min: 1, why: "without it every askConfirm() resolves false: Pay/Delete buttons silently do nothing" },
-  { file: "src/features/legal/TermsHost.tsx", needle: "deliberately inert", min: 1, why: "the terms sheet must not close on a scrim tap or back press: that silently drops the bid being placed (web rule)" },
+  { file: "src/features/legal/TermsHost.tsx", needle: "onClose={keepOpen}", min: 1, why: "the terms sheet must not close on a scrim tap or back press: that silently drops the bid being placed (web rule)" },
   { file: "src/features/contractor/OnboardingScreen.tsx", needle: "if (!keepLock) onUnlock()", min: 1, why: "a failed submit must release the lock, or a later Google/Apple sign-in is never re-checked" },
   { file: "src/app/_layout.tsx", needle: "<TermsHost", min: 1, why: "without it ensureTermsAccepted() fails open: a bid/request goes through without the person seeing changed terms" },
   { file: "src/app/_layout.tsx", needle: "<ToastHost", min: 1, why: "without it notify() confirmations vanish silently" },

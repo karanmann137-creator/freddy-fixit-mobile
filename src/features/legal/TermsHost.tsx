@@ -58,8 +58,9 @@ export function TermsHost() {
   // No scrim or back-button dismiss (web: "NO SCRIM DISMISS AND NO ESCAPE DISMISS"):
   // a stray tap would silently drop the bid being placed. "Not now" is the only
   // way out (review G5 #1).
+  const keepOpen = () => undefined;
   return (
-    <BottomSheet open={!!pending} onClose={() => { /* deliberately inert */ }} label="We've updated our terms">
+    <BottomSheet open={!!pending} onClose={keepOpen} label="We've updated our terms">
       <View style={{ gap: t.s3 }}>
         <Txt variant="label" size={1.5} ls={0.04} accessibilityRole="header">{"We've updated our terms"}</Txt>
         <Txt size={0.92} lh={1.6} color={muted}>
