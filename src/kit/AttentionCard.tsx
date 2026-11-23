@@ -9,9 +9,13 @@ import { Ic } from "./Ic";
 import { Row } from "./Row";
 
 /** Rows, with fragments opened up (keys preserved) and empty/false children dropped. */
-function flatten(children: React.ReactNode): React.ReactNode[] {
-  return React.Children.toArray(children).flatMap((c) =>
-    React.isValidElement(c) && c.type === React.Fragment ? flatten((c.props as { children?: React.ReactNode }).children) : [c]);
+function flatten(children: React.ReactNode, prefix = ""): React.ReactNode[] {
+  return React.Children.toArray(children).flatMap((c) => {
+    if (!React.isValidElement(c)) return [c];
+    const key = `${prefix}${c.key ?? ""}`;
+    if (c.type === React.Fragment) return flatten((c.props as { children?: React.ReactNode }).children, `${key}/`);
+    return [React.cloneElement(c, { key })]; // fragment-prefixed, so two fragments can't both yield ".0"
+  });
 }
 
 export function AttentionCard({ children, title = "NEEDS YOUR ATTENTION", max = 3 }: { children: React.ReactNode; title?: string; max?: number }) {

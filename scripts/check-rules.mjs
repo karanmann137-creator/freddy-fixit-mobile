@@ -112,7 +112,12 @@ for (const f of files) {
     const num = ts.isNumericLiteral(n) ? Number(n.text) : null;
     const pct = ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.SlashToken && ts.isNumericLiteral(n.left) &&
       ts.isNumericLiteral(n.right) && n.right.text === "100" && ["93", "7", "3", "40"].includes(n.left.text);
-    if ((num !== null && RATE_VALUES.has(num)) || pct) {
+    const parentNode = parents[parents.length - 1];
+    const nearestKey = [...parents].reverse().find((a) => ts.isPropertyAssignment(a));
+    const styleValue = nearestKey && NOT_A_SIZE.has(nearestKey.name.getText(sf)) && nearestKey.initializer === n;
+    const callArg = parentNode && ts.isCallExpression(parentNode) && parentNode.arguments.includes(n) &&
+      /^(rgba|withTiming|withSpring|withDelay|bezier|Easing\.\w+)$/.test(parentNode.expression.getText(sf).replace(/^.*\./, ""));
+    if (((num !== null && RATE_VALUES.has(num)) || pct) && !styleValue && !callArg) {
       // Context = the arithmetic the number is in (amount * 0.07) plus the NAMES it is
       // assigned to, all the way up (const rates = { platform: 0.07 } → rates, platform).
       // Not siblings: opacity: 0.4 next to an unrelated `amount` prop is not money.

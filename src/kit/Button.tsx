@@ -14,7 +14,7 @@ import { ActivityIndicator, Pressable, View, type ViewStyle } from "react-native
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { ease, rgba, ui, useTheme } from "./theme";
-import { Txt } from "./Text";
+import { Txt, isTextLike } from "./Text";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -71,7 +71,7 @@ export function Button({ variant = "secondary", full, loading, disabled, onPress
         }}
       >
         {loading && <ActivityIndicator size="small" color={s.fg} />}
-        {typeof children === "string" ? <Txt variant="label" color={s.fg}>{children}</Txt> : children}
+        {isTextLike(children) ? <Txt variant="label" color={s.fg}>{children}</Txt> : children}
       </Pressable>
     </Animated.View>
   );

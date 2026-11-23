@@ -24,8 +24,8 @@ export function Stepper({ steps }: { steps: Step[] }) {
           todo: { borderWidth: ui.stepRail, borderColor: t.hair },
         }[s.state];
         return (
-          <View key={i} accessible={isTextLike(s.title) && (s.sub == null || isTextLike(s.sub))}
-            accessibilityLabel={isTextLike(s.title) && (s.sub == null || isTextLike(s.sub)) ? [s.title, s.sub, LABEL[s.state]].filter((x) => x != null && x !== "").join(", ") : undefined}
+          <View key={i} accessible={isTextLike(s.title)}
+            accessibilityLabel={isTextLike(s.title) ? [s.title, isTextLike(s.sub) ? s.sub : null, LABEL[s.state]].filter((x) => x != null && x !== "").join(", ") : undefined}
             style={{ flexDirection: "row", gap: t.s3, paddingVertical: t.s3, paddingHorizontal: t.s4 }}>
             {!last && <View style={{ position: "absolute", left: t.s4 + ui.stepDot / 2 - ui.stepRail / 2, width: ui.stepRail, top: ui.stepRailTop, bottom: -t.s3, backgroundColor: t.hair }} />}
             <View style={{ width: ui.stepDot, alignItems: "center", marginTop: ui.nudge2 }}>

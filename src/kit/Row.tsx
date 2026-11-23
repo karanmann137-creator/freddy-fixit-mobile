@@ -79,7 +79,7 @@ export function Row({ icon, tone = "accent", title, sub, right, amount, chevron,
         {isTextLike(title) ? <Txt variant="bodyMedium" size={0.95} numberOfLines={2}>{title}</Txt> : title}
         {sub != null && sub !== false ? (isTextLike(sub) ? <Txt size={0.82} color={rgba(t.muted, 0.92)} style={{ marginTop: ui.nudge }}>{sub}</Txt> : sub) : null}
       </View>
-      {(amount || right || chevron) && (
+      {((amount != null && amount !== false) || (right != null && right !== false) || chevron) && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2, marginLeft: t.s3 }}>
           {amount != null && amount !== false ? (isTextLike(amount) ? <Txt variant="label" size={1}>{amount}</Txt> : amount) : null}
           {isTextLike(right) ? <Txt variant="label" size={0.9} color={rgba(t.muted, 0.8)}>{right}</Txt> : right}

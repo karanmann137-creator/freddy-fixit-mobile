@@ -31,10 +31,12 @@ const split = (blob: string | null) => {
 };
 
 const mem = new Map<string, string>();
+let generation = 0; // bumped by every removeItem: a read that started before it must not cache
 
 export const secureSession = {
   async getItem(key: string): Promise<string | null> {
     if (mem.has(key)) return mem.get(key)!;
+    const gen = generation;
     try {
       const parts = split(await AsyncStorage.getItem(key));
       if (!parts) return null; // missing, or the pre-versioned format: sign in again
@@ -42,6 +44,7 @@ export const secureSession = {
       if (!keyHex) return null;
       const cipher = new aesjs.ModeOfOperation.ctr(aesjs.utils.hex.toBytes(keyHex), new aesjs.Counter(1));
       const value = aesjs.utils.utf8.fromBytes(cipher.decrypt(aesjs.utils.hex.toBytes(parts.sealed)));
+      if (gen !== generation) return null; // signed out while we were reading: the old session is gone
       mem.set(key, value);
       return value;
     } catch {
@@ -63,6 +66,7 @@ export const secureSession = {
     }
   },
   async removeItem(key: string): Promise<void> {
+    generation++;
     mem.delete(key);
     const attempt = async () => {
       const prev = split(await AsyncStorage.getItem(key));
