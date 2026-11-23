@@ -26,7 +26,6 @@ jobs:
       - uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          show_full_output: true # TEMP: diagnose first run; remove after
           claude_args: >-
             --model ${{ contains(github.event.pull_request.labels.*.name, 'opus') && 'opus' || 'sonnet' }}
             --max-turns 15
