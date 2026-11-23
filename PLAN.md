@@ -536,7 +536,7 @@ before its PR merges.**
 | Date | Done | PR |
 |---|---|---|
 | 2026-11-22 | Phase 1 (1.1–1.5) and the first half of Phase 2: tokens/theme (2.1), Button/ButtonRow/Stack (2.2), Ic (2.3), Pill + StateLine (2.4), Group/Card/Row (2.5), Screen/DashCard (2.8), DeadEnd (2.9), KitLab (2.11). Review-gate configs (§8a). | `phase-1/foundation` |
-| 2026-11-22 | Rest of Phase 2: Pass/PassTop/IconButton/Mark/Hero/PassMeta (2.6), Stepper/AttentionCard/TrustLine/JobSwitcher (2.7), Skeleton/Toast/ScreenHeader (2.8), BottomSheet + askConfirm/ConfirmHost (2.10, plain RN Modal: no gesture library until a screen needs drag). Gates G1 + G2 reviewed by a Sonnet agent. App icon from the owner's logo. | `phase-2/kit`, #3 |
+| 2026-11-22 | Rest of Phase 2: Pass/PassTop/IconButton/Mark/Hero/PassMeta (2.6), Stepper/AttentionCard/TrustLine/JobSwitcher (2.7), Skeleton/Toast/ScreenHeader (2.8), BottomSheet + askConfirm/ConfirmHost (2.10, plain RN Modal: no gesture library until a screen needs drag). Gates G1 + G2 reviewed by a Sonnet agent. App icon from the owner's logo is in PR #3, **waiting for the owner to merge it**. Until then the tree has Expo's placeholder icons. | `phase-2/kit`, #3 |
 | (next) | **Phase 3: auth** (3.1 root gate first). Needs the owner's Supabase dashboard work (A1) before Google/Apple can be tested on a device. | |
 | (waiting) | **Phase 0** (web prereqs W1–W3). Not done here: web changes ship through the owner's `ship.py` installer from the mounted folder (desktop app), which this cloud session can't reach. Only needed from Phase 4. | |
 

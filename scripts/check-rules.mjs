@@ -30,7 +30,7 @@ const RULE_OK = /rule-ok:\s*\S+(\s+\S+){2,}/;
 
 // ---------------------------------------------------------------- rule tables
 const LINE_RULES = [ // run on the comment-blanked text, line by line
-  { rule: "Use .maybeSingle(), never .single() (web rule: .single() errors on zero rows)", test: (l) => /\.single\(/.test(l) },
+  { rule: "Use .maybeSingle(), never .single() (web rule: .single() errors on zero rows)", test: (l) => /\.single\s*(<[^>]*>)?\s*\(/.test(l) }, // also .single<Row>()
   { rule: "No `as any` on a Supabase call: the typed client is the point", test: (l) => /(supabase\.|\.rpc\(|functions\.invoke)/.test(l) && /\bas any\b/.test(l) },
   { rule: "No colour literal outside the tokens: use useTheme().t / rgba()",
     test: (l) => /(["'`])#[0-9a-fA-F]{3,8}\1|\b(rgba?|hsla?)\(\s*\d/.test(l), skip: (rel) => rel === "src/kit/theme.tsx" },

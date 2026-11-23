@@ -49,7 +49,7 @@ export function browserGlobalRefs(sf) {
     if (p && (ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p)) && p.name === n) return; // { document: … }
     if (p && ts.isTypeOfExpression(p)) return; // typeof window
     if (parents.some((a) => ts.isTypeNode(a))) return;
-    if (p && (ts.isImportSpecifier(p) || ts.isExportSpecifier(p) || ts.isParameter(p) || ts.isVariableDeclaration(p) && p.name === n)) return;
+    if (p && (ts.isImportSpecifier(p) || ts.isExportSpecifier(p) || (ts.isParameter(p) || ts.isVariableDeclaration(p)) && p.name === n)) return; // a name, not a default value
     hits.push({ node: n, parents });
   });
   return hits;
