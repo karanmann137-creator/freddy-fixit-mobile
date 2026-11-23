@@ -35,7 +35,8 @@ export type Destination =
   | { kind: "blocked"; msg: string; role: string | null }
   | { kind: "error"; msg: string };
 
-const ROLE_CHOSEN_KEY = "ff_role_chosen";
+// Per account (CodeRabbit #5): a shared phone must not let account B inherit A's "already chose".
+const roleChosenKey = (userId: string) => `ff_role_chosen:${userId}`;
 const OFFLINE = "We couldn't reach Freddy Fix It just now. Check your connection, then try again.";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -71,6 +72,13 @@ async function hasContractorRow(userId: string): Promise<boolean | null> {
   return error ? null : !!data;
 }
 
+/** A contractor lands on onboarding until their contractors row exists. */
+async function contractorHome(userId: string): Promise<Destination> {
+  const c = await hasContractorRow(userId);
+  if (c === null) return { kind: "error", msg: OFFLINE };
+  return c ? { kind: "contractor" } : { kind: "contractorOnboarding" };
+}
+
 export async function resolveDestination(userId: string, wantedRole: WantedRole): Promise<Destination> {
   const { role, failed } = await readRole(userId, wantedRole);
   if (failed) return { kind: "error", msg: OFFLINE };
@@ -81,25 +89,20 @@ export async function resolveDestination(userId: string, wantedRole: WantedRole)
     if (role === "admin") return byRole(role);
     const w = await setMyRole(userId, "contractor");
     if (!w.ok) return refused(w, role);
-    const c = await hasContractorRow(userId);
-    if (c === null) return { kind: "error", msg: OFFLINE };
-    return c ? { kind: "contractor" } : { kind: "contractorOnboarding" };
+    return contractorHome(userId);
   }
 
   if (wantedRole === "client") {
-    if (role === "admin" || role === "contractor") return byRole(role);
+    if (role === "admin") return byRole(role);
+    if (role === "contractor") return contractorHome(userId);
     await applyReferralAtSignup(await stashedReferralCode()); // never throws; a refusal is stashed for the dashboard
     return { kind: "client" };
   }
 
   // No funnel intent (plain sign-in, or app launch). Established accounts skip the chooser.
   if (role === "admin") return byRole(role);
-  if (role === "contractor") {
-    const c = await hasContractorRow(userId);
-    if (c === null) return { kind: "error", msg: OFFLINE };
-    return c ? { kind: "contractor" } : { kind: "contractorOnboarding" };
-  }
-  if (await kvGet(ROLE_CHOSEN_KEY)) return byRole(role);
+  if (role === "contractor") return contractorHome(userId);
+  if (await kvGet(roleChosenKey(userId))) return byRole(role);
   const [reqs, con] = await Promise.all([
     supabase.from("client_requests").select("id").eq("user_id", userId).limit(1),
     supabase.from("contractors").select("id").eq("id", userId).maybeSingle(),
@@ -113,6 +116,6 @@ export async function resolveDestination(userId: string, wantedRole: WantedRole)
 export async function chooseRole(userId: string, role: "client" | "contractor"): Promise<Destination> {
   const w = await setMyRole(userId, role);
   if (!w.ok) return refused(w, null);
-  await kvSet(ROLE_CHOSEN_KEY, "1");
+  await kvSet(roleChosenKey(userId), "1");
   return role === "contractor" ? { kind: "contractorOnboarding" } : { kind: "client" };
 }

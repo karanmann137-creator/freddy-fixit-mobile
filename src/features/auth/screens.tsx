@@ -56,6 +56,7 @@ export function SignInScreen() {
   const [busy, setBusy] = useState(false);
 
   const signIn = async () => {
+    if (busy) return; // the keyboard's Go key can fire while a sign-in is already running
     if (!email || !password) { setError("Please enter your email and password."); return; }
     setError(""); setNeedsConfirm(false); setNote(""); setBusy(true);
     await beginSignIn(null);
@@ -240,6 +241,7 @@ export function ConfirmLinkScreen() {
         return transient(error) ? "offline" : "spent"; // an offline tap didn't use the link up: say so
       }
       verified = true;
+      if (!alive) return null; // cancelled while checking: the session (if any) is picked up by the gate
       if (kind === "recovery") { await kvSet(RECOVERY_OK, String(Date.now())); router.replace("/update-password"); return null; }
       await continueAfterSignIn();
       return null;
@@ -282,8 +284,8 @@ export function UpdatePasswordScreen() {
     (async () => {
       const at = Number((await kvGet(RECOVERY_OK)) || 0);
       if (!at || Date.now() - at > RECOVERY_TTL_MS) return "invalid" as const;
-      const { data } = await supabase.auth.getSession();
-      return data.session ? ("ready" as const) : ("invalid" as const);
+      const a = await readAuthUser();
+      return a.kind === "user" ? ("ready" as const) : ("invalid" as const);
     })().catch(() => "invalid" as const).then(setPhase);
   }, []);
   const finish = async () => {

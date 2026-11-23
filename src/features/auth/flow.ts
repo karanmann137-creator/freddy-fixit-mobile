@@ -77,10 +77,12 @@ export async function continueAfterSignIn(): Promise<void> {
 /** After the code (or when none was owed). Re-reads the user: never trusts a stale id. */
 export async function finishSignIn(): Promise<void> {
   const p = (await kvGetJson<Pending>(PENDING)) ?? { wanted: null };
+  // finishSignIn runs only once no code is owed or one was just verified: record that FIRST,
+  // so a failed read below can't send someone back for a second code.
+  if (p.codeOwed) { p.codeOwed = false; await kvSetJson(PENDING, p); }
   const a = await readAuthUser();
   if (a.kind === "unknown") return go({ kind: "error", msg: "We couldn't confirm your sign-in just now. Check your connection, then try again." });
   if (a.kind === "signedOut") { await clearSignIn(); router.replace("/welcome"); return; }
-  if (p.codeOwed) await kvSetJson(PENDING, { ...p, codeOwed: false }); // the code was just verified
   const d = await resolveDestination(a.userId, p.wanted);
   if (d.kind === "error") return go(d); // keep the record: Retry resumes with the same intent
   // The profile row is guaranteed now (resolveDestination ensured it), so the one-time name can land.
