@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 import { router } from "expo-router";
 import {
-  AttentionCard, Button, Card, DeadEnd, Group, Hero, HeroSub, JobSwitcher, Pass, PassMeta, PassMetaItem, PassTop,
+  AttentionCard, Button, Card, DeadEnd, Group, Hero, HeroSub, Ic, IconButton, JobSwitcher, Pass, PassMeta, PassMetaItem, PassTop,
   Pill, Row, Screen, SkRow, StateLine, Txt, rgba, useDelayed, useTheme,
 } from "@/kit";
 import { supabase } from "@/lib/supabase";
@@ -18,6 +18,7 @@ import {
   type AttnRow, type JobView, type Read,
 } from "./rules";
 import { openOnWeb } from "./web";
+import { useUnreadCount } from "./NotificationsScreen";
 
 const STATUS: Record<string, { label: string; tone: "accent" | "good" | "warn" | "danger" | "neutral" }> = {
   pending: { label: "Out to pros", tone: "neutral" },
@@ -60,6 +61,7 @@ export function RequestsScreen() {
   const [nonce, setNonce] = useState(0);
   const [refError, setRefError] = useState("");
   const showSkeleton = useDelayed();
+  const unread = useUnreadCount(state.kind === "ok" ? state.data.userId : null);
 
   const data = state.kind === "ok" ? state.data : null;
   const req = data ? pickActiveRequest(data.requests, selectedId) : null;
@@ -110,7 +112,11 @@ export function RequestsScreen() {
   return (
     <Screen edges={["left", "right"]} contentStyle={{ paddingHorizontal: 0 }} onRefresh={refreshAll}>
       <Pass>
-        <PassTop />
+        <PassTop>
+          <IconButton label="Notifications" badge={unread ? (unread > 9 ? "9+" : unread) : null} onPress={() => router.push("/client/notifications")}>
+            <Ic name="bell" size={18} />
+          </IconButton>
+        </PassTop>
         <View style={{ marginTop: t.s4 }}><StateLine state={pass.state}>{pass.label}</StateLine></View>
         <Hero>{pass.hero}</Hero>
         {pass.sub ? <HeroSub>{pass.sub}</HeroSub> : null}
