@@ -12,7 +12,7 @@ import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTheme, rgba, ui } from "./theme";
-import { Txt } from "./Text";
+import { Txt, isTextLike } from "./Text";
 import { Button } from "./Button";
 
 type Props =
@@ -21,6 +21,7 @@ type Props =
 
 export function DeadEnd(p: Props) {
   const { t } = useTheme();
+  const hasAlt = p.alt != null && p.alt !== false && p.alt !== "";
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: t.s4, padding: t.s6 }}>
@@ -29,8 +30,8 @@ export function DeadEnd(p: Props) {
           <Button variant="primary" onPress={p.onRetry}>{p.retryLabel ?? "Try again"}</Button>
         )}
         {/* Belt and braces for a cast around the type: a refusal with no alt still gets a way out. */}
-        {p.retry === false && p.alt == null && <Button onPress={() => router.replace("/")}>Go home</Button>}
-        {p.alt != null && (typeof p.alt === "string"
+        {p.retry === false && !hasAlt && <Button onPress={() => router.replace("/")}>Go home</Button>}
+        {hasAlt && (isTextLike(p.alt)
           ? <Txt size={0.85} color={rgba(t.muted, 0.7)} style={{ textAlign: "center" }}>{p.alt}</Txt>
           : p.alt)}
       </View>

@@ -9,7 +9,7 @@
 // skipped. They are web copies, reviewed in the web repo and proven unedited
 // by check:shared.
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative, dirname } from "node:path";
+import { join, relative, dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 import { blankComments, browserGlobalRefs, lineOf, parse, walk } from "./lib/source.mjs";
@@ -30,7 +30,6 @@ const RULE_OK = /rule-ok:\s*\S+(\s+\S+){2,}/;
 
 // ---------------------------------------------------------------- rule tables
 const LINE_RULES = [ // run on the comment-blanked text, line by line
-  { rule: "Use .maybeSingle(), never .single() (web rule: .single() errors on zero rows)", test: (l) => /\.single\s*(<[^>]*>)?\s*\(/.test(l) }, // also .single<Row>()
   { rule: "No `as any` on a Supabase call: the typed client is the point", test: (l) => /(supabase\.|\.rpc\(|functions\.invoke)/.test(l) && /\bas any\b/.test(l) },
   { rule: "No colour literal outside the tokens: use useTheme().t / rgba()",
     test: (l) => /(["'`])#[0-9a-fA-F]{3,8}\1|\b(rgba?|hsla?)\(\s*\d/.test(l), skip: (rel) => rel === "src/kit/theme.tsx" },
@@ -52,24 +51,37 @@ const NOT_A_SIZE = new Set(["flex", "flexGrow", "flexShrink", "opacity", "zIndex
 
 // ---------------------------------------------------------------- per file
 const files = walkDir(SRC)
-  .map((abs) => ({ rel: relative(ROOT, abs), text: readFileSync(abs, "utf8") }))
+  .map((abs) => ({ rel: relative(ROOT, abs).split(sep).join("/"), text: readFileSync(abs, "utf8") })) // "/" on every OS
   .filter((f) => !LOCKED.has(f.rel));
 
 for (const f of files) {
   const sf = parse(f.text, f.rel);
   const raw = f.text.split("\n");
   const code = blankComments(f.text, sf).split("\n");
-  const ok = (line) => RULE_OK.test(raw[line] ?? "");
+  // The comment text on each line = the characters blanking removed. rule-ok only counts there,
+  // so a string that happens to contain "rule-ok:" exempts nothing.
+  const comments = raw.map((l, i) => {
+    const c = code[i] ?? "";
+    let j = 0;
+    while (j < l.length && l[j] === c[j]) j++;
+    return j < l.length ? l.slice(j) : ""; // from the first blanked character: the comment
+  });
+  const ok = (line) => RULE_OK.test(comments[line] ?? "");
   const report = (line, rule) => { if (!ok(line)) problems.push(`${f.rel}:${line + 1}  ${rule}\n      ${(raw[line] ?? "").trim().slice(0, 140)}`); };
   const at = (node) => lineOf(sf, node.getStart(sf));
   const inKit = f.rel.startsWith("src/kit/") && f.rel !== "src/kit/theme.tsx";
 
-  raw.forEach((l, i) => { if (/rule-ok:/.test(l) && !RULE_OK.test(l)) problems.push(`${f.rel}:${i + 1}  rule-ok needs a reason (3+ words)\n      ${l.trim()}`); });
+  comments.forEach((c, i) => { if (/rule-ok:/.test(c) && !RULE_OK.test(c)) problems.push(`${f.rel}:${i + 1}  rule-ok needs a reason (3+ words)\n      ${raw[i].trim()}`); });
   code.forEach((l, i) => { for (const r of LINE_RULES) if ((!r.skip || !r.skip(f.rel)) && r.test(l)) report(i, r.rule); });
 
   for (const { node } of browserGlobalRefs(sf)) report(at(node), "No browser globals in app code (window/document/localStorage): use src/platform");
 
   walk(sf, (n, parents) => {
+    // .single() (incl. .single<Row>() and split lines): web rule, .single() errors on zero rows
+    if (ts.isCallExpression(n) && (ts.isPropertyAccessExpression(n.expression)) && n.expression.name.text === "single") {
+      report(at(n.expression.name), "Use .maybeSingle(), never .single() (web rule: .single() errors on zero rows)");
+    }
+
     // Banned imports (they read window.location)
     if (ts.isImportSpecifier(n) && /^(readDashNavFromUrl|clearDashNavFromUrl)$/.test((n.propertyName ?? n.name).text)) {
       report(at(n), "Banned import: readDashNavFromUrl/clearDashNavFromUrl read window.location. Use platform/links.ts");
@@ -101,9 +113,17 @@ for (const f of files) {
     const pct = ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.SlashToken && ts.isNumericLiteral(n.left) &&
       ts.isNumericLiteral(n.right) && n.right.text === "100" && ["93", "7", "3", "40"].includes(n.left.text);
     if ((num !== null && RATE_VALUES.has(num)) || pct) {
-      const stmt = [...parents].reverse().find((a) => ts.isStatement(a) || ts.isPropertyAssignment(a) || ts.isJsxAttribute(a)) ?? n;
+      // Context = the arithmetic the number is in (amount * 0.07) plus the NAMES it is
+      // assigned to, all the way up (const rates = { platform: 0.07 } → rates, platform).
+      // Not siblings: opacity: 0.4 next to an unrelated `amount` prop is not money.
       const ids = [];
-      walk(stmt, (m) => { if (ts.isIdentifier(m)) ids.push(m.text); });
+      let k = parents.length - 1;
+      while (k >= 0 && (ts.isBinaryExpression(parents[k]) || ts.isParenthesizedExpression(parents[k]) || ts.isPrefixUnaryExpression(parents[k]))) k--;
+      walk(parents[k + 1] ?? n, (m) => { if (ts.isIdentifier(m)) ids.push(m.text); });
+      for (const a of parents) {
+        if ((ts.isVariableDeclaration(a) || ts.isPropertyAssignment(a) || ts.isPropertyDeclaration(a) || ts.isParameter(a)) && a.name) ids.push(a.name.getText(sf));
+        if (ts.isBinaryExpression(a) && a.operatorToken.kind === ts.SyntaxKind.EqualsToken) ids.push(a.left.getText(sf));
+      }
       if (ids.some((id) => words(id).some((w) => MONEY_WORDS.has(w)))) report(at(n), "No hard-coded money rate: rates come from platformRates.ts / get_job_fee");
     }
 

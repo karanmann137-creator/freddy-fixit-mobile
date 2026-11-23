@@ -8,7 +8,7 @@
 import React from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
 import { rgba, ui, useTheme } from "./theme";
-import { Txt } from "./Text";
+import { Txt, isTextLike } from "./Text";
 import { Ic, type IconName } from "./Ic";
 
 export function Group({ label, action, children, style }: { label?: string; action?: React.ReactNode; children: React.ReactNode; style?: ViewStyle }) {
@@ -76,13 +76,13 @@ export function Row({ icon, tone = "accent", title, sub, right, amount, chevron,
         ) : null}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        {typeof title === "string" ? <Txt variant="bodyMedium" size={0.95} numberOfLines={2}>{title}</Txt> : title}
-        {sub ? (typeof sub === "string" ? <Txt size={0.82} color={rgba(t.muted, 0.92)} style={{ marginTop: ui.nudge }}>{sub}</Txt> : sub) : null}
+        {isTextLike(title) ? <Txt variant="bodyMedium" size={0.95} numberOfLines={2}>{title}</Txt> : title}
+        {sub != null && sub !== false ? (isTextLike(sub) ? <Txt size={0.82} color={rgba(t.muted, 0.92)} style={{ marginTop: ui.nudge }}>{sub}</Txt> : sub) : null}
       </View>
       {(amount || right || chevron) && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2, marginLeft: t.s3 }}>
-          {amount ? (typeof amount === "string" ? <Txt variant="label" size={1}>{amount}</Txt> : amount) : null}
-          {typeof right === "string" ? <Txt variant="label" size={0.9} color={rgba(t.muted, 0.8)}>{right}</Txt> : right}
+          {amount != null && amount !== false ? (isTextLike(amount) ? <Txt variant="label" size={1}>{amount}</Txt> : amount) : null}
+          {isTextLike(right) ? <Txt variant="label" size={0.9} color={rgba(t.muted, 0.8)}>{right}</Txt> : right}
           {chevron ? <View style={{ opacity: 0.4 }}><Ic name="chevron-down" size={ui.icon.md} rotate={-90} /></View> : null}
         </View>
       )}

@@ -6,7 +6,7 @@ import React from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
 import Svg, { Defs, Path, Polygon, RadialGradient, Rect, Stop } from "react-native-svg";
 import { OnDark, rgba, ui, useTheme } from "./theme";
-import { Txt } from "./Text";
+import { Txt, isTextLike } from "./Text";
 
 /** The logo mark. Brand colours are fixed by design, not themed. */
 export function Mark({ size = ui.mark }: { size?: number }) {
@@ -105,7 +105,7 @@ export function PassMetaItem({ label, value, accent }: { label: string; value: R
   return (
     <View style={{ minWidth: 0, flexShrink: 1 }}>
       <Txt variant="label" size={0.72} color={rgba(t.muted, 0.7)} style={{ marginBottom: ui.nudge2 }}>{label}</Txt>
-      {typeof value === "string"
+      {isTextLike(value)
         ? <Txt variant="label" size={1.02} color={accent ? t.accent400 : t.text} numberOfLines={1}>{value}</Txt>
         : value}
     </View>

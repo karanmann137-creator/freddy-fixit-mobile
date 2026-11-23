@@ -21,8 +21,13 @@ export const lineOf = (sf, pos) => sf.getLineAndCharacterOfPosition(pos).line;
 export function blankComments(text, sf = parse(text)) {
   const chars = text.split("");
   const seen = new Set();
+  // JSX text like <Txt>// note</Txt> is text, not a comment: trivia scans that start
+  // next to it would otherwise read it as one.
+  const jsxText = [];
+  walk(sf, (n) => { if (n.kind === ts.SyntaxKind.JsxText) jsxText.push([n.pos, n.end]); });
+  const inJsxText = (pos) => jsxText.some(([a, b]) => pos >= a && pos < b);
   const blank = (r) => {
-    if (seen.has(r.pos)) return;
+    if (seen.has(r.pos) || inJsxText(r.pos)) return;
     seen.add(r.pos);
     for (let i = r.pos; i < r.end; i++) if (chars[i] !== "\n") chars[i] = " ";
   };
@@ -48,7 +53,11 @@ export function browserGlobalRefs(sf) {
     if (p && ts.isPropertyAccessExpression(p) && p.name === n) return; // x.document
     if (p && (ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p)) && p.name === n) return; // { document: … }
     if (p && ts.isTypeOfExpression(p)) return; // typeof window
-    if (parents.some((a) => ts.isTypeNode(a))) return;
+    // Types are erased, except a class `extends` expression, which runs (class X extends window.HTMLElement).
+    const runtimeHeritage = parents.some((a, i) => ts.isExpressionWithTypeArguments(a) && ts.isHeritageClause(parents[i - 1]) &&
+      parents[i - 1].token === ts.SyntaxKind.ExtendsKeyword && ts.isClassLike(parents[i - 2]));
+    if (!runtimeHeritage && parents.some((a) => ts.isTypeNode(a) && !ts.isExpressionWithTypeArguments(a))) return;
+    if (!runtimeHeritage && parents.some((a) => ts.isExpressionWithTypeArguments(a))) return; // implements, interface extends
     if (p && (ts.isImportSpecifier(p) || ts.isExportSpecifier(p) || (ts.isParameter(p) || ts.isVariableDeclaration(p)) && p.name === n)) return; // a name, not a default value
     hits.push({ node: n, parents });
   });
@@ -75,7 +84,10 @@ export function importTimeGlobals(text, fileName) {
   return browserGlobalRefs(sf)
     .filter(({ parents }) => {
       for (let i = parents.length - 1; i >= 0; i--) {
-        if (isFnLike(parents[i]) && !isIIFE(parents, i)) return false; // inside a real function
+        // Inside a real function's body or parameters: runs only if called. A computed
+        // method NAME ({ [window.x]() {} }) is evaluated when the object is created, so it counts.
+        const inName = parents[i].name && parents[i + 1] === parents[i].name;
+        if (isFnLike(parents[i]) && !isIIFE(parents, i) && !inName) return false;
       }
       return true;
     })

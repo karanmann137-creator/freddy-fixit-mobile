@@ -8,9 +8,15 @@ import { Txt } from "./Text";
 import { Ic } from "./Ic";
 import { Row } from "./Row";
 
+/** Rows, with fragments opened up (keys preserved) and empty/false children dropped. */
+function flatten(children: React.ReactNode): React.ReactNode[] {
+  return React.Children.toArray(children).flatMap((c) =>
+    React.isValidElement(c) && c.type === React.Fragment ? flatten((c.props as { children?: React.ReactNode }).children) : [c]);
+}
+
 export function AttentionCard({ children, title = "NEEDS YOUR ATTENTION", max = 3 }: { children: React.ReactNode; title?: string; max?: number }) {
   const { t } = useTheme();
-  const rows = React.Children.toArray(children).filter(Boolean).slice(0, max);
+  const rows = flatten(children).slice(0, max);
   if (rows.length === 0) return null;
   return (
     <View style={{ backgroundColor: t.accentSoft, borderWidth: ui.line, borderColor: t.accentLine, borderRadius: t.r3, overflow: "hidden", marginTop: t.s5 }}>

@@ -8,7 +8,7 @@
 //   · One gut, shared by a row's icon column and its separator.
 //   · Touch targets are at least 48dp.
 export { ThemeProvider, OnDark, useTheme, useFs, rgba, ease, fonts, type Tokens } from "./theme";
-export { Txt } from "./Text";
+export { Txt, isTextLike } from "./Text";
 export { Ic, type IconName } from "./Ic";
 export { Button, ButtonRow, Stack, type ButtonVariant } from "./Button";
 export { Pill, type PillTone } from "./Pill";

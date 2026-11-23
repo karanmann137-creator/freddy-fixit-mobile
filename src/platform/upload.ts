@@ -24,7 +24,8 @@ function extOf(a: UploadAsset): string {
   const fromUri = a.uri.split("?")[0].split(".").pop()?.toLowerCase();
   if (fromUri && MIME[fromUri]) return fromUri;
   const t = (a.mimeType || "").split("/")[1];
-  return t === "jpeg" ? "jpg" : t || "jpg";
+  if (t === "jpeg") return "jpg";
+  return t && MIME[t] ? t : "bin"; // unknown stays unknown (content type octet-stream), never a guessed JPEG
 }
 
 /**

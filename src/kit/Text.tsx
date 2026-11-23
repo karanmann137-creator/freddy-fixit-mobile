@@ -9,6 +9,9 @@ type Variant = "body" | "bodyMedium" | "bodyBold" | "label" | "display";
 
 /** `lh` = line height as a multiple of the font size, `ls` = letter spacing in em.
  *  Both scale with the text-size setting. A fixed px lineHeight clips text at "Largest". */
+/** React Native crashes on a bare string OR number outside <Text>. Anything this says yes to gets wrapped. */
+export const isTextLike = (v: unknown): v is string | number => typeof v === "string" || typeof v === "number";
+
 export function Txt({ variant = "body", size, color, lh, ls, style, ...rest }: TextProps & { variant?: Variant; size?: number; color?: string; lh?: number; ls?: number }) {
   const { t } = useTheme();
   const fs = useFs();

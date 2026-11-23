@@ -11,9 +11,12 @@
 // new ciphertext with an old key. The worst case is the previous session staying
 // valid. The superseded key is deleted only after both writes succeed.
 //
-// Never throws into supabase-js: a failed read is null (signed out), a failed
-// write is logged in dev and dropped (the session lives in memory until the next
-// successful write, so the person is not signed out mid-use).
+// IN-MEMORY COPY (CodeRabbit #4). Every write lands in `mem` first, and reads
+// check it first, so a failed disk write can't lose the session mid-use. It is
+// only missing after a restart, which means "sign in again", never a wrong account.
+// Reads and writes never throw into supabase-js. REMOVAL is different: a sign-out
+// that silently failed would leave the next launch signed in, so removeItem
+// retries once and then throws.
 // Known limit (device test): a read before first unlock after reboot returns
 // null, which reads as signed out, not "unknown".
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -27,20 +30,26 @@ const split = (blob: string | null) => {
   return blob && i === 16 ? { kid: blob.slice(0, i), sealed: blob.slice(i + 1) } : null; // kid = 8 bytes hex
 };
 
+const mem = new Map<string, string>();
+
 export const secureSession = {
   async getItem(key: string): Promise<string | null> {
+    if (mem.has(key)) return mem.get(key)!;
     try {
       const parts = split(await AsyncStorage.getItem(key));
       if (!parts) return null; // missing, or the pre-versioned format: sign in again
       const keyHex = await SecureStore.getItemAsync(`${key}.${parts.kid}`);
       if (!keyHex) return null;
       const cipher = new aesjs.ModeOfOperation.ctr(aesjs.utils.hex.toBytes(keyHex), new aesjs.Counter(1));
-      return aesjs.utils.utf8.fromBytes(cipher.decrypt(aesjs.utils.hex.toBytes(parts.sealed)));
+      const value = aesjs.utils.utf8.fromBytes(cipher.decrypt(aesjs.utils.hex.toBytes(parts.sealed)));
+      mem.set(key, value);
+      return value;
     } catch {
       return null;
     }
   },
   async setItem(key: string, value: string): Promise<void> {
+    mem.set(key, value); // the session holds for this run whatever the disk does
     try {
       const prev = split(await AsyncStorage.getItem(key).catch(() => null));
       const kid = hex(getRandomBytes(8));
@@ -50,12 +59,18 @@ export const secureSession = {
       await AsyncStorage.setItem(key, `${kid}.${sealed}`); // 2. the switch-over
       if (prev && prev.kid !== kid) await SecureStore.deleteItemAsync(`${key}.${prev.kid}`).catch(() => {}); // 3. tidy
     } catch (e) {
-      if (__DEV__) console.warn("secureSession.setItem failed; session kept in memory only", e);
+      if (__DEV__) console.warn("secureSession.setItem failed; session kept in memory for this run", e);
     }
   },
   async removeItem(key: string): Promise<void> {
-    const prev = split(await AsyncStorage.getItem(key).catch(() => null));
-    await AsyncStorage.removeItem(key).catch(() => {});
-    if (prev) await SecureStore.deleteItemAsync(`${key}.${prev.kid}`).catch(() => {});
+    mem.delete(key);
+    const attempt = async () => {
+      const prev = split(await AsyncStorage.getItem(key));
+      await AsyncStorage.removeItem(key); // the blob is what makes the next launch signed in: it must go
+      if (prev) await SecureStore.deleteItemAsync(`${key}.${prev.kid}`).catch(() => {}); // an orphan key decrypts nothing
+    };
+    try { await attempt(); } catch {
+      await attempt(); // one retry; a second failure throws so sign-out can't report a success it didn't have
+    }
   },
 };

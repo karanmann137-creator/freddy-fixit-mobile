@@ -3,7 +3,7 @@
 import React from "react";
 import { View } from "react-native";
 import { rgba, ui, useTheme } from "./theme";
-import { Txt } from "./Text";
+import { Txt, isTextLike } from "./Text";
 import { Ic } from "./Ic";
 
 export type StepState = "done" | "now" | "todo" | "review";
@@ -24,8 +24,8 @@ export function Stepper({ steps }: { steps: Step[] }) {
           todo: { borderWidth: ui.stepRail, borderColor: t.hair },
         }[s.state];
         return (
-          <View key={i} accessible={typeof s.title === "string"}
-            accessibilityLabel={typeof s.title === "string" ? [s.title, typeof s.sub === "string" ? s.sub : null, LABEL[s.state]].filter(Boolean).join(", ") : undefined}
+          <View key={i} accessible={isTextLike(s.title) && (s.sub == null || isTextLike(s.sub))}
+            accessibilityLabel={isTextLike(s.title) && (s.sub == null || isTextLike(s.sub)) ? [s.title, s.sub, LABEL[s.state]].filter((x) => x != null && x !== "").join(", ") : undefined}
             style={{ flexDirection: "row", gap: t.s3, paddingVertical: t.s3, paddingHorizontal: t.s4 }}>
             {!last && <View style={{ position: "absolute", left: t.s4 + ui.stepDot / 2 - ui.stepRail / 2, width: ui.stepRail, top: ui.stepRailTop, bottom: -t.s3, backgroundColor: t.hair }} />}
             <View style={{ width: ui.stepDot, alignItems: "center", marginTop: ui.nudge2 }}>
@@ -34,10 +34,10 @@ export function Stepper({ steps }: { steps: Step[] }) {
               </View>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
-              {typeof s.title === "string"
+              {isTextLike(s.title)
                 ? <Txt variant={s.state === "todo" ? "body" : "bodyMedium"} size={0.92} color={s.state === "todo" ? rgba(t.muted, 0.78) : t.text}>{s.title}</Txt>
                 : <>{s.title}<Txt style={{ position: "absolute", opacity: 0 }} accessibilityLabel={LABEL[s.state]}>{LABEL[s.state]}</Txt></>}
-              {s.sub ? (typeof s.sub === "string" ? <Txt size={0.8} color={rgba(t.muted, 0.9)} style={{ marginTop: ui.nudge }}>{s.sub}</Txt> : s.sub) : null}
+              {s.sub != null ? (isTextLike(s.sub) ? <Txt size={0.8} color={rgba(t.muted, 0.9)} style={{ marginTop: ui.nudge }}>{s.sub}</Txt> : s.sub) : null}
             </View>
           </View>
         );
