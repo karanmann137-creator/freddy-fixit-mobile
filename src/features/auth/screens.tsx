@@ -1,0 +1,273 @@
+// Sign-in screens. PLAN.md §4. Each is a thin port of the web page named beside it.
+import React, { useEffect, useRef, useState } from "react";
+import { Pressable, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
+import { Button, Card, DeadEnd, Field, FormNote, Row, Stack, Txt, notify, rgba, useTheme } from "@/kit";
+import { supabase } from "@/lib/supabase";
+import { readAuthUser } from "@/lib/authRead";
+import { mfaReason } from "@/lib/mfa";
+import { AuthShell } from "./AuthShell";
+import { OAuthButtons } from "./OAuthButtons";
+import { PasswordField } from "./PasswordField";
+import { chooseRole } from "./destination";
+import { continueAfterSignIn, finishSignIn, go, signOut } from "./flow";
+
+const WEB = "https://freddyfixit.ca";
+
+function TextLink({ children, onPress, label }: { children: string; onPress: () => void; label?: string }) {
+  const { t } = useTheme();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="link" accessibilityLabel={label ?? children} hitSlop={t.s3}
+      style={{ minHeight: t.hCtl, justifyContent: "center" }}>
+      <Txt size={0.88} color={t.accent500}>{children}</Txt>
+    </Pressable>
+  );
+}
+
+// ---------------------------------------------------------------- welcome
+export function WelcomeScreen() {
+  const { t } = useTheme();
+  return (
+    <AuthShell title="Welcome" sub="Trusted local pros for home repairs in Calgary.">
+      <Stack>
+        <Button variant="primary" full onPress={() => router.push("/sign-in")}>Sign in with email</Button>
+      </Stack>
+      <OAuthButtons signInSurface />
+      <View style={{ marginTop: t.s6, borderTopWidth: t.hairW, borderTopColor: t.hair, paddingTop: t.s4 }}>
+        <Txt size={0.85} color={rgba(t.muted, 0.7)}>New to Freddy Fix It?</Txt>
+        {/* Native signup arrives in Phase 4 (clients) and Phase 5 (contractors). Until then, the web funnels. */}
+        <TextLink onPress={() => WebBrowser.openBrowserAsync(`${WEB}/client-onboarding`)}>Get a repair done →</TextLink>
+        <TextLink onPress={() => WebBrowser.openBrowserAsync(`${WEB}/contractor-onboarding`)}>Join as a contractor →</TextLink>
+      </View>
+    </AuthShell>
+  );
+}
+
+// ---------------------------------------------------------------- sign in (web Login.tsx, sign-in mode)
+export function SignInScreen() {
+  const { t } = useTheme();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [needsConfirm, setNeedsConfirm] = useState(false);
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const signIn = async () => {
+    if (!email || !password) { setError("Please enter your email and password."); return; }
+    setError(""); setNeedsConfirm(false); setNote(""); setBusy(true);
+    const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (e) {
+      setBusy(false);
+      const m = (e.message ?? "").toLowerCase();
+      if (m.includes("not confirmed") || (e as { code?: string }).code === "email_not_confirmed") {
+        setNeedsConfirm(true);
+        setError("Please confirm your email before signing in. Check your inbox for the verification link.");
+      } else if (m.includes("invalid login credentials")) {
+        setError("That email and password don't match. Check them and try again.");
+      } else {
+        setError("Sign in didn't work just now. Check your connection and try again.");
+      }
+      return;
+    }
+    await continueAfterSignIn(null); // navigates away
+  };
+
+  const resend = async () => {
+    if (!email) { setError("Enter your email above first."); return; }
+    setBusy(true); setNote("");
+    // The link lands on the web until universal links go live (PLAN W3); it works from any device.
+    const { error: e } = await supabase.auth.resend({ type: "signup", email: email.trim(), options: { emailRedirectTo: `${WEB}/auth/callback` } });
+    setBusy(false);
+    if (e) setError("We couldn't resend the email just now. Try again in a minute.");
+    else setNote("Confirmation email sent. Check your inbox.");
+  };
+
+  return (
+    <AuthShell title="Sign in" sub="Welcome back.">
+      <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none"
+        autoComplete="email" textContentType="username" autoCorrect={false} returnKeyType="next" />
+      <PasswordField value={password} onChangeText={setPassword} onSubmitEditing={signIn} />
+      {error ? <FormNote>{error}</FormNote> : null}
+      {note ? <FormNote tone="good">{note}</FormNote> : null}
+      {needsConfirm && <TextLink onPress={resend}>Resend the confirmation email</TextLink>}
+      <Stack>
+        <Button variant="primary" full loading={busy} onPress={signIn}>Sign in</Button>
+      </Stack>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: t.s2 }}>
+        {/* Reset links need device-independent email links (PLAN W3) to land in the app. Until then the web resets it. */}
+        <TextLink onPress={() => WebBrowser.openBrowserAsync(`${WEB}/login`)}>Forgot password?</TextLink>
+        <TextLink onPress={() => router.back()}>Back</TextLink>
+      </View>
+    </AuthShell>
+  );
+}
+
+// ---------------------------------------------------------------- two-step code (web Login.tsx otpStage)
+export function VerifyCodeScreen() {
+  const { t } = useTheme();
+  const [code, setCode] = useState("");
+  const [recovery, setRecovery] = useState(false);
+  const [err, setErr] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const sent = useRef(false);
+
+  const send = async () => {
+    setErr(""); setNote(""); setBusy(true);
+    const { data, error } = await supabase.rpc("mfa_request_code", { p_purpose: "login" });
+    setBusy(false);
+    const d = data as { ok?: boolean; reason?: string } | null;
+    if (error) { setErr("Couldn't send the code. Try again in a moment."); return; }
+    if (!d?.ok) { setErr(mfaReason(d?.reason)); return; }
+    setNote("Code sent. Check your email.");
+  };
+  useEffect(() => { if (!sent.current) { sent.current = true; void send(); } }, []);
+
+  const need = recovery ? 10 : 6;
+  const verify = async () => {
+    setErr(""); setNote(""); setBusy(true);
+    const { data, error } = recovery
+      ? await supabase.rpc("mfa_use_recovery", { p_code: code.trim() })
+      : await supabase.rpc("mfa_verify", { p_code: code, p_purpose: "login" });
+    const d = data as { ok?: boolean; reason?: string; attempts_left?: number } | null;
+    if (error || !d?.ok) { setBusy(false); setErr(error ? "Couldn't check that code. Try again." : mfaReason(d?.reason, d?.attempts_left)); return; }
+    await finishSignIn(); // navigates away
+  };
+
+  return (
+    <AuthShell title="One more step" sub={recovery ? "Enter one of the recovery codes you saved." : "We emailed you a 6-digit code. It expires in 10 minutes. Check your spam folder if it hasn't arrived."}>
+      <Field label={recovery ? "Recovery code" : "6-digit code"} value={code} autoFocus
+        onChangeText={(v) => setCode(recovery ? v.replace(/[^0-9a-zA-Z]/g, "").slice(0, 10).toUpperCase() : v.replace(/\D/g, "").slice(0, 6))}
+        keyboardType={recovery ? "default" : "number-pad"} autoComplete="one-time-code" textContentType="oneTimeCode" autoCapitalize="characters" />
+      {err ? <FormNote>{err}</FormNote> : null}
+      {note && !recovery ? <FormNote tone="good">{note}</FormNote> : null}
+      <Stack>
+        <Button variant="primary" full loading={busy} disabled={code.length < need} onPress={verify}>Verify</Button>
+      </Stack>
+      <View style={{ flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", marginTop: t.s2 }}>
+        {recovery
+          ? <TextLink onPress={() => { setRecovery(false); setCode(""); setErr(""); }}>Use an emailed code</TextLink>
+          : <>
+              <TextLink onPress={send}>Resend code</TextLink>
+              <TextLink onPress={() => { setRecovery(true); setCode(""); setErr(""); setNote(""); }}>Use a recovery code</TextLink>
+            </>}
+      </View>
+      {/* Backing out leaves a half-finished sign-in, so it signs out (web rule). */}
+      <TextLink onPress={() => void signOut()}>Cancel and sign out</TextLink>
+    </AuthShell>
+  );
+}
+
+// ---------------------------------------------------------------- role chooser (web AuthCallback "choose")
+export function ChooseRoleScreen() {
+  const { t } = useTheme();
+  const [busy, setBusy] = useState<"client" | "contractor" | null>(null);
+  const pick = async (role: "client" | "contractor") => {
+    setBusy(role);
+    const a = await readAuthUser();
+    if (a.kind !== "user") { setBusy(null); go({ kind: "error", msg: "We couldn't confirm your sign-in just now. Nothing has been lost. Try again." }); return; }
+    go(await chooseRole(a.userId, role));
+  };
+  return (
+    <AuthShell title="What brings you here?" sub="Pick one. This sets up your account.">
+      <Card style={{ marginTop: t.s5 }}>
+        <Row icon="home" title="I need a repair" sub="Post a job and get quotes from vetted local pros" chevron onPress={() => !busy && pick("client")} />
+        <Row icon="wrench" title="I'm a contractor" sub="Find jobs near you and get paid securely" chevron onPress={() => !busy && pick("contractor")} />
+      </Card>
+      {busy ? <Txt size={0.85} color={rgba(t.muted, 0.7)} style={{ marginTop: t.s4 }}>Setting up your account…</Txt> : null}
+    </AuthShell>
+  );
+}
+
+// ---------------------------------------------------------------- sign-in problems (web AuthCallback "blocked")
+export function AuthProblemScreen() {
+  const { t } = useTheme();
+  const { msg, role, retry } = useLocalSearchParams<{ msg?: string; role?: string; retry?: string }>();
+  const text = msg || "Something went wrong signing you in.";
+  if (retry) return <DeadEnd msg={text} onRetry={() => router.replace("/")} />;
+  // A refusal (e.g. the one-account-type rule): retrying fails the same way, so offer the account they DO have.
+  return (
+    <DeadEnd retry={false} msg={text} alt={
+      <View style={{ gap: t.s3, alignItems: "center" }}>
+        {role ? <Button onPress={() => go(role === "contractor" ? { kind: "contractor" } : role === "admin" ? { kind: "admin" } : { kind: "client" })}>Go to my account</Button> : null}
+        <Button variant="ghost" onPress={() => void signOut()}>Sign out</Button>
+      </View>
+    } />
+  );
+}
+
+// ---------------------------------------------------------------- admin
+export function AdminScreen() {
+  const { t } = useTheme();
+  return (
+    <DeadEnd retry={false} msg="Admin tools live on the website, not in the app." alt={
+      <View style={{ gap: t.s3, alignItems: "center" }}>
+        <Button variant="primary" onPress={() => WebBrowser.openBrowserAsync(`${WEB}/admin-dashboard`)}>Open admin on the web</Button>
+        <Button variant="ghost" onPress={() => void signOut()}>Sign out</Button>
+      </View>
+    } />
+  );
+}
+
+// ---------------------------------------------------------------- email link (PLAN §4.4: /auth/confirm?token_hash&type)
+export function ConfirmLinkScreen() {
+  const { token_hash, type, role } = useLocalSearchParams<{ token_hash?: string; type?: string; role?: string }>();
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const kind = type === "recovery" ? "recovery" : type === "magiclink" ? "magiclink" : type === "email_change" ? "email_change" : "signup";
+      if (!token_hash) { setFailed(true); return; }
+      const { error } = await supabase.auth.verifyOtp({ token_hash, type: kind });
+      if (error) { setFailed(true); return; }
+      if (kind === "recovery") { router.replace("/update-password"); return; }
+      await continueAfterSignIn(role === "contractor" || role === "client" ? role : null);
+    })();
+  }, [token_hash, type, role]);
+  if (failed) {
+    return <DeadEnd retry={false} msg="This link has expired or was already used." alt={<Button onPress={() => router.replace("/welcome")}>Go to sign in</Button>} />;
+  }
+  return <AuthShell title="Signing you in…"><View /></AuthShell>;
+}
+
+// ---------------------------------------------------------------- new password (web UpdatePassword.tsx)
+export function UpdatePasswordScreen() {
+  const [phase, setPhase] = useState<"checking" | "ready" | "invalid" | "done">("checking");
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [breached, setBreached] = useState(false);
+  useEffect(() => {
+    // Reached right after ConfirmLinkScreen verified a recovery link, so a session must exist.
+    supabase.auth.getSession().then(({ data }) => setPhase(data.session ? "ready" : "invalid")).catch(() => setPhase("invalid"));
+  }, []);
+  const submit = async () => {
+    setErr("");
+    if (pw.length < 8) { setErr("Password must be at least 8 characters."); return; }
+    if (pw !== pw2) { setErr("Passwords do not match."); return; }
+    if (breached) { setErr("That password has appeared in public data breaches. Please choose a different one."); return; }
+    setBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    setBusy(false);
+    if (error) { setErr("We couldn't update your password. The link may have expired. Request a new one."); return; }
+    setPhase("done");
+    notify("Password updated");
+    await continueAfterSignIn(null); // same rule as web: a new password still meets the two-step code
+  };
+  if (phase === "checking") return <AuthShell title="Checking your link…"><View /></AuthShell>;
+  if (phase === "invalid") {
+    return <DeadEnd retry={false} msg="This password reset link is invalid or has expired. Request a new one." alt={<Button onPress={() => router.replace("/welcome")}>Back to sign in</Button>} />;
+  }
+  return (
+    <AuthShell title="Set a new password" sub="Enter a new password for your account.">
+      <PasswordField label="New password" value={pw} onChangeText={setPw} meter newPassword onBreachChange={setBreached} />
+      <PasswordField label="Confirm new password" value={pw2} onChangeText={setPw2} newPassword onSubmitEditing={submit} />
+      {err ? <FormNote>{err}</FormNote> : null}
+      <Stack>
+        <Button variant="primary" full loading={busy} disabled={phase === "done"} onPress={submit}>Save password</Button>
+      </Stack>
+    </AuthShell>
+  );
+}

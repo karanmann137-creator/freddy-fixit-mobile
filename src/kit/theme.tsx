@@ -72,6 +72,9 @@ export const ui = {
   icon: { xs: 11, sm: 14, md: 15, lg: 18, xl: 20 },
   mark: 34,           // logo mark in the Pass top bar
   iconStroke: 1.75,   // Lucide stroke width (web Ic.tsx)
+  inputMin: 16,       // input font floor (web coarse-pointer rule; below 16 iOS zooms on web)
+  authMax: 420,       // auth card width (web Login .inner maxWidth)
+  meterH: 4,          // password strength bar height
 } as const;
 
 const SETS = { dark: build(rawTokens.dark), light: build(rawTokens.light), onDark: build(rawTokens.onDark) };

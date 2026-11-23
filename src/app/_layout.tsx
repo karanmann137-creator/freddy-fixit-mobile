@@ -1,6 +1,7 @@
 // Root layout: fonts + saved prefs load behind the splash, then the theme.
-// Phase 3 (PLAN.md §4.2) adds the auth gate here; ConfirmDialog/Toast are mounted
-// below, once, so no screen can forget to mount them.
+// The auth gate is src/app/index.tsx. ConfirmHost/ToastHost are mounted below,
+// once, so no screen can forget to mount them.
+import "@/platform/polyfills"; // FIRST: synced web code needs crypto.subtle.digest
 import React, { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
