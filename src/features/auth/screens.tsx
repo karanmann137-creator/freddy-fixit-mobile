@@ -275,6 +275,7 @@ export function UpdatePasswordScreen() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [breached, setBreached] = useState(false);
+  const [saved, setSaved] = useState(false); // password already changed; a retry only finishes signing in
   useEffect(() => {
     // Only a recovery link verified moments ago opens this screen (review G3 #5): some other
     // signed-in session must never be the one whose password gets changed.
@@ -285,8 +286,12 @@ export function UpdatePasswordScreen() {
       return data.session ? ("ready" as const) : ("invalid" as const);
     })().catch(() => "invalid" as const).then(setPhase);
   }, []);
+  const finish = async () => {
+    try { await continueAfterSignIn(); } catch { setPhase("ready"); setErr("Your password is saved, but we couldn't finish signing you in. Try again."); }
+  };
   const submit = async () => {
     setErr("");
+    if (saved) { setPhase("done"); await finish(); return; }
     if (pw.length < 8) { setErr("Password must be at least 8 characters."); return; }
     if (pw !== pw2) { setErr("Passwords do not match."); return; }
     if (breached) { setErr("That password has appeared in public data breaches. Please choose a different one."); return; }
@@ -295,9 +300,10 @@ export function UpdatePasswordScreen() {
     setBusy(false);
     if (error) { setErr("We couldn't update your password. The link may have expired. Request a new one."); return; }
     await kvRemove(RECOVERY_OK);
+    setSaved(true);
     setPhase("done");
     notify("Password updated");
-    try { await continueAfterSignIn(); } catch { setPhase("ready"); setErr("Your password is saved, but we couldn't finish signing you in. Try again."); } // same rule as web: a new password still meets the two-step code
+    await finish(); // same rule as web: a new password still meets the two-step code
   };
   if (phase === "checking") return <AuthShell title="Checking your link…"><View /></AuthShell>;
   if (phase === "invalid") {
@@ -309,7 +315,7 @@ export function UpdatePasswordScreen() {
       <PasswordField label="Confirm new password" value={pw2} onChangeText={setPw2} newPassword onSubmitEditing={submit} />
       {err ? <FormNote>{err}</FormNote> : null}
       <Stack>
-        <Button variant="primary" full loading={busy} disabled={phase === "done"} onPress={submit}>Save password</Button>
+        <Button variant="primary" full loading={busy} disabled={phase === "done"} onPress={submit}>{saved ? "Continue" : "Save password"}</Button>
       </Stack>
       {/* A cold reset link is the only screen in the stack: this is the way out. */}
       <TextLink onPress={() => { void kvRemove(RECOVERY_OK); void signOut(); }}>Cancel and sign out</TextLink>
