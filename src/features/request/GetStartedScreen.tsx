@@ -374,7 +374,7 @@ function SignupForm({ draft, restored, onStartOver, initialRef, serviceParam }: 
               {"Friends who join with your code get the "}<Txt variant="bodyBold" size={0.84}>3% service fee waived on their first job</Txt>.
             </Txt>
             <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3, marginTop: t.s4, flexWrap: "wrap" }}>
-              <View style={{ paddingHorizontal: t.s4, paddingVertical: t.s1, borderRadius: t.r2, borderWidth: ui.line, borderStyle: "dashed", borderColor: rgba(t.accentRgb, 0.5) }}>
+              <View style={{ paddingHorizontal: t.s4, paddingVertical: t.s1, borderRadius: t.r2, borderWidth: ui.line, borderStyle: "dashed", borderColor: rgba(t.fg, 0.25) }}>
                 <Txt variant="label" size={1.6} ls={0.12} color={t.text} selectable>{referral}</Txt>
               </View>
               <Button onPress={() => share(referral)}>Share code</Button>

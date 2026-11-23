@@ -195,7 +195,7 @@ function RequestCard({ req, job, bids, onRetry }: { req: any; job: Read<JobView>
         ) : null}
         {req.status === "pending" && bids.kind === "ok" ? (
           <Row icon="user-check" tone="neutral" title={bids.value === 0 ? "No estimates yet" : bids.value + (bids.value === 1 ? " estimate" : " estimates") + " in"}
-            sub={bids.value === 0 ? "Pros in your area have been told about it." : undefined} />
+            sub={bids.value === 0 ? "Estimates usually land within a day." : undefined} />
         ) : null}
         {failed ? (
           <Row icon="alert-triangle" tone="warn" title="We couldn't load everything for this request." sub="Tap to try again." onPress={onRetry} />

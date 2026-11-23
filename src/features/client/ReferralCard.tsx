@@ -106,7 +106,7 @@ export function ReferralCard() {
     {/* Sharing a code that will be refused is a dead end the sharer can't see, so it is hidden when retired or on hold. */}
     {retired ? null : (
       <View style={{ marginTop: t.s4, alignItems: "center", gap: t.s3 }}>
-        <View style={{ paddingHorizontal: t.s4, paddingVertical: t.s2, borderWidth: t.hairW, borderStyle: "dashed", borderColor: t.accentLine, borderRadius: t.r3, opacity: inUse ? 0.45 : 1 }}>
+        <View style={{ paddingHorizontal: t.s4, paddingVertical: t.s2, borderWidth: t.hairW, borderStyle: "dashed", borderColor: rgba(t.fg, 0.25), borderRadius: t.r3, opacity: inUse ? 0.45 : 1 }}>
           <Txt selectable variant="label" size={1.8} ls={0.12} color={t.text}>{referral.code}</Txt>
         </View>
         {inUse ? <Txt size={0.78} color={rgba(t.muted, 0.9)}>On hold with a friend</Txt> : <Button onPress={() => void share()}>Share invite link</Button>}
