@@ -10,10 +10,11 @@ export function contractorNav(o: { scheduled: number; earned: number; reviews: n
   return { calendar: o.scheduled > 0, earnings: o.earned > 0, reviews: o.reviews > 0 };
 }
 
-export const navCounts = (d: { jobs: any[]; contractor: any | null; reviews: any[] }) => ({
+export const navCounts = (d: { jobs: any[]; contractor: any | null; reviews: any[]; reviewsFailed?: boolean }) => ({
   scheduled: d.jobs.filter((j) => !!j.scheduled_at).length,
   earned: Number(d.contractor?.total_earned ?? 0),
-  reviews: d.reviews.length,
+  // A failed reviews read keeps the row, so its couldn't-load screen is reachable (review G5 #2).
+  reviews: d.reviewsFailed ? Math.max(1, d.reviews.length) : d.reviews.length,
 });
 
 export type PassView = { state: State; label: string; hero: string; sub?: string };

@@ -24,6 +24,7 @@ type Loaded = {
   reviews: Read<any[]>;
   grade: Read<Grade | null>;
   role: string | null;
+  signedIn: boolean;
 };
 
 const SCORES: [string, string][] = [["Price", "price_score"], ["Experience", "experience_score"], ["Results", "result_score"]];
@@ -49,9 +50,10 @@ async function load(id: string): Promise<Omit<Loaded, "key">> {
       grade: pg.error ? bad : { kind: "ok", value: ((pg.data as { grade?: string } | null)?.grade ?? null) as Grade | null },
       // The viewer's role only decides whether "Book" is offered; unreadable = unknown.
       role: me.error ? null : (me.data as { role?: string | null } | null)?.role ?? null,
+      signedIn: !!session?.user,
     };
   } catch {
-    return { con: bad, portfolio: bad, reviews: bad, grade: bad, role: null };
+    return { con: bad, portfolio: bad, reviews: bad, grade: bad, role: null, signedIn: false };
   }
 }
 
@@ -110,7 +112,9 @@ export function ProProfileScreen() {
   const pfUrl = (path: string) => supabase.storage.from("portfolio-photos").getPublicUrl(path).data.publicUrl;
   // Web offers "Book" to every viewer. A signed-in contractor or admin can't book (the
   // request flow is the client's), so it is not offered to them; unknown role = offered.
-  const canBook = cur.role !== "contractor" && cur.role !== "admin";
+  // Signed out: the new-request screen would send them to Welcome and drop the pro
+  // (review G5 #4), so Book is offered only to a signed-in client or unknown role.
+  const canBook = cur.signedIn && cur.role !== "contractor" && cur.role !== "admin";
   const marks: { icon: "user-check" | "check-circle" | "clipboard-list"; label: string; tone: PillTone }[] = [];
   if (c.id_verified) marks.push({ icon: "user-check", label: "ID verified", tone: "good" });
   if (c.insurance_on_file) marks.push({ icon: "check-circle", label: "Insurance on file", tone: "neutral" });

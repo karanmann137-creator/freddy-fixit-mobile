@@ -141,11 +141,11 @@ export function ContractorOnboardingScreen() {
   return (
     <OnboardingForm key={`${mode.signed?.userId ?? "out"}:${gen}`} signed={mode.signed} draft={gen ? null : mode.draft}
       onStartOver={() => { void kvRemove(CONTRACTOR_DRAFT_KEY); setGen((g) => g + 1); }}
-      onLock={() => { busy.current = true; }} />
+      onLock={() => { busy.current = true; }} onUnlock={() => { busy.current = false; }} />
   );
 }
 
-function OnboardingForm({ signed, draft, onStartOver, onLock }: { signed: Signed | null; draft: Draft | null; onStartOver: () => void; onLock: () => void }) {
+function OnboardingForm({ signed, draft, onStartOver, onLock, onUnlock }: { signed: Signed | null; draft: Draft | null; onStartOver: () => void; onLock: () => void; onUnlock: () => void }) {
   const { t } = useTheme();
   const authedUserId = signed?.userId ?? null;
   const df = draft?.form ?? {};
@@ -254,6 +254,11 @@ function OnboardingForm({ signed, draft, onStartOver, onLock }: { signed: Signed
     onLock();
     setLoading(true); setSubmitError(""); setRefused(false);
     let begun = false;
+    // The lock stops the SIGNED_IN re-check while this submit owns the session. It
+    // is kept only once this screen has created a session or reached a terminal
+    // screen; every failure/early return releases it, so a later Google/Apple
+    // sign-in still re-checks who is here (review G5a #3).
+    let keepLock = false;
     try {
       // Every answer as signup metadata: handle_new_user() writes the profile +
       // contractors row even when there is no session yet (web).
@@ -308,12 +313,14 @@ function OnboardingForm({ signed, draft, onStartOver, onLock }: { signed: Signed
           await abandonSignIn(); begun = false; // no session: nothing to resume (the email link starts its own)
           await kvRemove(CONTRACTOR_DRAFT_KEY);
           trackEvent("sign_up", { method: "contractor" });
+          keepLock = true;
           setVerifyEmail(true);
           setLoading(false);
           return;
         }
         // A session exists: the pending record now belongs to the pipeline (continueAfterSignIn clears it).
         begun = false;
+        keepLock = true;
         setSignedUpId(userId);
       } else if (authedUserId) {
         // Already signed in: the tick was still shown and validated, so there IS one to record (web).
@@ -378,6 +385,7 @@ function OnboardingForm({ signed, draft, onStartOver, onLock }: { signed: Signed
 
       await kvRemove(CONTRACTOR_DRAFT_KEY);
       trackEvent("sign_up", { method: "contractor" });
+      keepLock = true;
       setSuccess(true);
     } catch (err) {
       if (begun) await abandonSignIn();
@@ -386,6 +394,7 @@ function OnboardingForm({ signed, draft, onStartOver, onLock }: { signed: Signed
       setSubmitError(msg.includes("already registered") ? DUPLICATE : msg || "Something went wrong. Nothing you typed has been lost — try again.");
     } finally {
       setLoading(false);
+      if (!keepLock) onUnlock();
     }
   };
 
