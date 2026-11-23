@@ -136,7 +136,7 @@ export function VerifyCodeScreen() {
       : await supabase.rpc("mfa_verify", { p_code: code, p_purpose: "login" });
     const d = data as { ok?: boolean; reason?: string; attempts_left?: number } | null;
     if (error || !d?.ok) { setBusy(false); setErr(error ? "Couldn't check that code. Try again." : mfaReason(d?.reason, d?.attempts_left)); return; }
-    await finishSignIn(); // navigates away
+    try { await finishSignIn(); } catch { setBusy(false); setErr("Your code was accepted, but we couldn't finish signing you in. Try again."); }
   };
 
   return (
@@ -224,10 +224,11 @@ const transient = (e: { name?: string; status?: number } | null) =>
 
 export function ConfirmLinkScreen() {
   const { token_hash, type, role } = useLocalSearchParams<{ token_hash?: string; type?: string; role?: string }>();
-  const [state, setState] = useState<"working" | "spent" | "offline">("working");
+  const [state, setState] = useState<"working" | "spent" | "offline" | "after">("working");
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     let alive = true;
+    let verified = false;
     (async (): Promise<"spent" | "offline" | null> => {
       const kind = type === "recovery" ? "recovery" : type === "magiclink" ? "magiclink" : type === "email_change" ? "email_change" : "signup";
       if (!token_hash) return "spent";
@@ -238,22 +239,32 @@ export function ConfirmLinkScreen() {
         await abandonSignIn();
         return transient(error) ? "offline" : "spent"; // an offline tap didn't use the link up: say so
       }
+      verified = true;
       if (kind === "recovery") { await kvSet(RECOVERY_OK, String(Date.now())); router.replace("/update-password"); return null; }
       await continueAfterSignIn();
       return null;
     })()
-      .catch(() => "offline" as const)
-      .then((r) => { if (alive && r) setState(r); });
+      .catch(() => (verified ? ("after" as const) : ("offline" as const))) // a used link must not be called "still works"
+      .then((r) => { if (alive && r) setState(r as "spent" | "offline" | "after"); });
     return () => { alive = false; };
   }, [token_hash, type, role, attempt]);
   if (state === "offline") {
     return <DeadEnd msg="We couldn't reach Freddy Fix It to check this link. Your link still works. Check your connection, then try again."
       onRetry={() => { setState("working"); setAttempt((n) => n + 1); }} />;
   }
+  if (state === "after") {
+    // The link worked and you're signed in; only the next step failed. The gate picks it up from here.
+    return <DeadEnd msg="You're signed in, but we couldn't finish opening your account." onRetry={() => router.replace("/")}
+      alt={<Button variant="ghost" onPress={() => void signOut()}>Sign out</Button>} />;
+  }
   if (state === "spent") {
     return <DeadEnd retry={false} msg="This link has expired or was already used." alt={<Button onPress={() => router.replace("/welcome")}>Go to sign in</Button>} />;
   }
-  return <AuthShell title="Signing you in…"><View /></AuthShell>;
+  return (
+    <AuthShell title="Signing you in…">
+      <TextLink onPress={() => { void abandonSignIn(); router.replace("/"); }}>Cancel</TextLink>
+    </AuthShell>
+  );
 }
 
 // ---------------------------------------------------------------- new password (web UpdatePassword.tsx)
@@ -286,7 +297,7 @@ export function UpdatePasswordScreen() {
     await kvRemove(RECOVERY_OK);
     setPhase("done");
     notify("Password updated");
-    await continueAfterSignIn(); // same rule as web: a new password still meets the two-step code
+    try { await continueAfterSignIn(); } catch { setPhase("ready"); setErr("Your password is saved, but we couldn't finish signing you in. Try again."); } // same rule as web: a new password still meets the two-step code
   };
   if (phase === "checking") return <AuthShell title="Checking your link…"><View /></AuthShell>;
   if (phase === "invalid") {
@@ -300,6 +311,8 @@ export function UpdatePasswordScreen() {
       <Stack>
         <Button variant="primary" full loading={busy} disabled={phase === "done"} onPress={submit}>Save password</Button>
       </Stack>
+      {/* A cold reset link is the only screen in the stack: this is the way out. */}
+      <TextLink onPress={() => { void kvRemove(RECOVERY_OK); void signOut(); }}>Cancel and sign out</TextLink>
     </AuthShell>
   );
 }
