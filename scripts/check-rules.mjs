@@ -154,6 +154,13 @@ const MOUNTS = [
   { file: "src/app/_layout.tsx", needle: "fontError", min: 1, why: "a font that fails to load must not hold the splash" },
   { file: "src/app/_layout.tsx", needle: "<ConfirmHost", min: 1, why: "without it every askConfirm() resolves false: Pay/Delete buttons silently do nothing" },
   { file: "src/app/_layout.tsx", needle: "<ToastHost", min: 1, why: "without it notify() confirmations vanish silently" },
+  { file: "src/app/_layout.tsx", needle: '"@/platform/polyfills"', min: 1, why: "without it the password breach check silently never runs (no crypto.subtle)" },
+  // Phase 3: every way in goes through the one pipeline, and the pipeline asks for the code.
+  { file: "src/features/auth/flow.ts", needle: "await mfaOwed()", min: 1, why: "without it two-step sign-in is silently skipped on every route" },
+  { file: "src/features/auth/OAuthButtons.tsx", needle: "continueAfterSignIn(", min: 1, why: "Google/Apple would skip the code and the role rules (web 2026-11-04)" },
+  { file: "src/features/auth/screens.tsx", needle: "continueAfterSignIn(", min: 3, why: "password sign-in, email link and new password must each go through the pipeline" },
+  { file: "src/app/index.tsx", needle: "mfaPendingFromLastRun()", min: 1, why: "killing the app on the code screen would skip the code on relaunch" },
+  { file: "src/features/auth/destination.ts", needle: 'role === "admin"', min: 3, why: "an established admin must win on EVERY funnel branch (web 2026-11-09 demotion)" },
 ];
 for (const m of MOUNTS) {
   let text = "";
