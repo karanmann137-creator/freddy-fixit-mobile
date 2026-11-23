@@ -9,7 +9,7 @@ import { OnDark, rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 
 /** The logo mark. Brand colours are fixed by design, not themed. */
-export function Mark({ size = 34 }: { size?: number }) {
+export function Mark({ size = ui.mark }: { size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 80 80" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Rect width="80" height="80" rx="18" fill="#1a2236" /* rule-ok: logo brand colours are fixed */ />
@@ -46,7 +46,7 @@ export function Pass({ children, forceNavy = true, style }: { children: React.Re
     : <PassBody style={style}>{children}</PassBody>;
 }
 
-export function PassTop({ children, lead, showWordmark = true, markSize = 34 }: { children?: React.ReactNode; lead?: React.ReactNode; showWordmark?: boolean; markSize?: number }) {
+export function PassTop({ children, lead, showWordmark = true, markSize = ui.mark }: { children?: React.ReactNode; lead?: React.ReactNode; showWordmark?: boolean; markSize?: number }) {
   const { t } = useTheme();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3, marginBottom: t.s5 }}>
@@ -54,8 +54,8 @@ export function PassTop({ children, lead, showWordmark = true, markSize = 34 }: 
         <>
           <Mark size={markSize} />
           {showWordmark && (
-            <Txt variant="label" size={1} style={{ letterSpacing: 1.9 }} accessibilityRole="header">
-              FREDDY <Txt variant="label" size={1} color={t.accent500} style={{ letterSpacing: 1.9 }}>FIX IT</Txt>
+            <Txt variant="label" size={1} ls={0.12} accessibilityRole="header">
+              FREDDY <Txt variant="label" size={1} ls={0.12} color={t.accent500}>FIX IT</Txt>
             </Txt>
           )}
         </>
@@ -72,12 +72,12 @@ export function IconButton({ label, badge, onPress, children }: { label: string;
   const showBadge = badge !== null && badge !== undefined && badge !== 0 && badge !== "";
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={showBadge ? `${label}, ${badge}` : label}
-      style={({ pressed }) => ({ width: t.hCtl, height: t.hCtl, borderRadius: 99, alignItems: "center", justifyContent: "center",
+      style={({ pressed }) => ({ width: t.hCtl, height: t.hCtl, borderRadius: ui.pill, alignItems: "center", justifyContent: "center",
         backgroundColor: rgba(t.fg, 0.07), borderWidth: t.hairW, borderColor: t.hair, transform: [{ scale: pressed && !reduceMotion ? 0.97 : 1 }] })}>
       {children}
       {showBadge && (
-        <View style={{ position: "absolute", top: -2, right: -2, minWidth: ui.badge, height: ui.badge, paddingHorizontal: 4, borderRadius: 99,
-          backgroundColor: t.accent500, borderWidth: 2, borderColor: t.surface2, alignItems: "center", justifyContent: "center" }}>
+        <View style={{ position: "absolute", top: -ui.edge, right: -ui.edge, minWidth: ui.badge, height: ui.badge, paddingHorizontal: t.s1, borderRadius: ui.pill,
+          backgroundColor: t.accent500, borderWidth: ui.edge, borderColor: t.surface2, alignItems: "center", justifyContent: "center" }}>
           <Txt variant="label" size={0.62} color="#fff" /* rule-ok: web badge text is white */>{String(badge)}</Txt>
         </View>
       )}
@@ -87,12 +87,12 @@ export function IconButton({ label, badge, onPress, children }: { label: string;
 
 export function Hero({ children }: { children: React.ReactNode }) {
   const { t } = useTheme();
-  return <Txt variant="bodyMedium" size={1.42} accessibilityRole="header" style={{ lineHeight: 30, letterSpacing: -0.6, marginBottom: t.s2 }}>{children}</Txt>;
+  return <Txt variant="bodyMedium" size={1.42} accessibilityRole="header" lh={1.26} ls={-0.03} style={{ marginBottom: t.s2 }}>{children}</Txt>;
 }
 
 export function HeroSub({ children }: { children: React.ReactNode }) {
   const { t } = useTheme();
-  return <Txt size={0.9} color={rgba(t.muted, 0.92)} style={{ lineHeight: 21 }}>{children}</Txt>;
+  return <Txt size={0.9} color={rgba(t.muted, 0.92)} lh={1.5}>{children}</Txt>;
 }
 
 export function PassMeta({ children }: { children: React.ReactNode }) {
@@ -104,7 +104,7 @@ export function PassMetaItem({ label, value, accent }: { label: string; value: R
   const { t } = useTheme();
   return (
     <View style={{ minWidth: 0, flexShrink: 1 }}>
-      <Txt variant="label" size={0.72} color={rgba(t.muted, 0.7)} style={{ marginBottom: 2 }}>{label}</Txt>
+      <Txt variant="label" size={0.72} color={rgba(t.muted, 0.7)} style={{ marginBottom: ui.nudge2 }}>{label}</Txt>
       {typeof value === "string"
         ? <Txt variant="label" size={1.02} color={accent ? t.accent400 : t.text} numberOfLines={1}>{value}</Txt>
         : value}

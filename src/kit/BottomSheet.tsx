@@ -15,7 +15,7 @@ export function BottomSheet({ open, onClose, children, label }: { open: boolean;
       <View accessibilityViewIsModal accessibilityLabel={label}
         style={{ backgroundColor: t.surface2, borderTopLeftRadius: t.r4, borderTopRightRadius: t.r4, paddingHorizontal: t.s5,
           paddingTop: t.s3, paddingBottom: Math.max(insets.bottom, t.s4) + t.s2, borderWidth: t.hairW, borderColor: t.cardBorder }}>
-        <View style={{ alignSelf: "center", width: ui.grabW, height: ui.grabH, borderRadius: 99, backgroundColor: rgba(t.fg, 0.18), marginBottom: t.s4 }}
+        <View style={{ alignSelf: "center", width: ui.grabW, height: ui.grabH, borderRadius: ui.pill, backgroundColor: rgba(t.fg, 0.18), marginBottom: t.s4 }}
           accessibilityElementsHidden importantForAccessibility="no" />
         {children}
       </View>

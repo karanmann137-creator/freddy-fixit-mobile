@@ -11,11 +11,18 @@ import { supabase } from "@/lib/supabase";
 import { compressImage, type CompressProfile, type UploadAsset } from "@/lib/imageCompress";
 import { rejectMessage, scanImage, shouldBlock } from "@/lib/imageSafety";
 
+const MIME: Record<string, string> = {
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp", heic: "image/heic", heif: "image/heif",
+  gif: "image/gif", avif: "image/avif", pdf: "application/pdf",
+};
+
 export type UploadResult = { ok: true; path: string } | { ok: false; message: string };
 
 function extOf(a: UploadAsset): string {
   const fromName = (a.fileName || "").split(".").pop()?.toLowerCase();
   if (fromName && fromName.length <= 5 && fromName !== a.fileName?.toLowerCase()) return fromName;
+  const fromUri = a.uri.split("?")[0].split(".").pop()?.toLowerCase();
+  if (fromUri && MIME[fromUri]) return fromUri;
   const t = (a.mimeType || "").split("/")[1];
   return t === "jpeg" ? "jpg" : t || "jpg";
 }
@@ -34,7 +41,8 @@ export async function uploadImage(opts: {
     const path = `${opts.basePath}.${extOf(small)}`;
     const body = await new File(small.uri).arrayBuffer();
     const { error } = await supabase.storage.from(opts.bucket).upload(path, body, {
-      contentType: small.mimeType || undefined,
+      // Never undefined: storage-js would default an ArrayBuffer to text/plain (HEIC pickers report "").
+      contentType: small.mimeType || MIME[extOf(small)] || "application/octet-stream",
     });
     if (error) return { ok: false, message: "Couldn't upload that photo. Check your connection and try again." };
     const scan = await scanImage(opts.bucket, path); // never throws; "unknown" on any problem

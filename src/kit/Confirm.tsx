@@ -63,14 +63,14 @@ export function ConfirmHost() {
       {p && (
         <>
           <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3, marginBottom: t.s4 }}>
-            <View style={{ width: ui.confirmIcon, height: ui.confirmIcon, borderRadius: 99, alignItems: "center", justifyContent: "center",
+            <View style={{ width: ui.confirmIcon, height: ui.confirmIcon, borderRadius: ui.pill, alignItems: "center", justifyContent: "center",
               backgroundColor: danger ? rgba(t.dangerRgb, 0.15) : t.accentSoft, borderWidth: t.hairW,
               borderColor: danger ? rgba(t.dangerRgb, 0.4) : t.accentLine }}>
-              <Ic name="alert-triangle" size={18} color={danger ? t.danger : t.accent500} />
+              <Ic name="alert-triangle" size={ui.icon.lg} color={danger ? t.danger : t.accent500} />
             </View>
             <Txt variant="bodyBold" size={1.05} style={{ flex: 1 }} accessibilityRole="header">{p.title}</Txt>
           </View>
-          <Txt color={rgba(t.muted, 0.95)} style={{ lineHeight: 22 }}>{p.message}</Txt>
+          <Txt color={rgba(t.muted, 0.95)} lh={1.45}>{p.message}</Txt>
           <ButtonRow>
             <Button full onPress={() => close(false)} testID="confirm-cancel">{p.cancelLabel ?? "Cancel"}</Button>
             <Button full variant={danger ? "danger" : "primary"} onPress={() => close(true)} testID="confirm-ok">{p.confirmLabel ?? "Confirm"}</Button>

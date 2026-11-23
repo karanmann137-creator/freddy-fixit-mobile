@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { AccessibilityInfo, Pressable } from "react-native";
 import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { rgba, useTheme } from "./theme";
+import { rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 import { Ic, type IconName } from "./Ic";
 
@@ -46,8 +46,8 @@ export function ToastHost() {
       <Pressable onPress={() => setCur(null)} accessibilityRole="button" accessibilityLabel={`${cur.msg}. Dismiss`}
         style={{ flexDirection: "row", alignItems: "center", gap: t.s3, minHeight: t.hCtl, paddingVertical: t.s3, paddingHorizontal: t.s4,
           borderRadius: t.r3, backgroundColor: t.surface2, borderWidth: t.hairW, borderColor: t.cardBorder,
-          shadowColor: rgba(t.bgRgb, 1), shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
-        <Ic name={s.icon} size={18} color={s.fg} />
+          shadowColor: rgba(t.bgRgb, 1), shadowOpacity: ui.shadow.opacity, shadowRadius: ui.shadow.radius, shadowOffset: { width: 0, height: ui.shadow.y }, elevation: ui.shadow.elevation }}>
+        <Ic name={s.icon} size={ui.icon.lg} color={s.fg} />
         <Txt size={0.92} style={{ flex: 1 }}>{cur.msg}</Txt>
       </Pressable>
     </Animated.View>

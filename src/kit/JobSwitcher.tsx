@@ -24,9 +24,10 @@ export function JobSwitcher({ jobs, activeId, onSelect, onNew, alwaysShow }: {
             : { borderColor: rgba(t.fg, 0.3) };
           return (
             <Pressable key={j.id} onPress={() => onSelect(j.id)} accessibilityRole="tab" accessibilityState={{ selected: on }}
+              accessibilityLabel={`${j.label}${j.state === "turn" ? ", needs you" : j.state === "ok" ? ", done" : ""}`}
               style={({ pressed }) => ({ height: t.hCtl, minWidth: t.hCtl, justifyContent: "center", flexDirection: "row", alignItems: "center", gap: t.s2,
-                borderBottomWidth: 2, borderBottomColor: on ? t.text : "transparent", transform: [{ scale: pressed && !reduceMotion ? 0.97 : 1 }] })}>
-              <View style={[{ width: ui.switcherDot, height: ui.switcherDot, borderRadius: 99, borderWidth: ui.stepRail }, dot]} />
+                borderBottomWidth: ui.edge, borderBottomColor: on ? t.text : "transparent", transform: [{ scale: pressed && !reduceMotion ? 0.97 : 1 }] })}>
+              <View style={[{ width: ui.switcherDot, height: ui.switcherDot, borderRadius: ui.pill, borderWidth: ui.stepRail }, dot]} />
               <Txt variant="label" size={0.95} color={on ? t.text : rgba(t.muted, 0.75)}>{j.label}</Txt>
             </Pressable>
           );

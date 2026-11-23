@@ -10,6 +10,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./lib/source.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(ROOT, "src");
@@ -22,31 +23,6 @@ function walk(dir) {
   });
 }
 
-/** Remove // and /* *\/ comments, keeping string contents and line breaks.
- *  A `//` inside a string ("https://…") is NOT a comment. */
-export function stripComments(src) {
-  let out = "", i = 0, q = null;
-  while (i < src.length) {
-    const c = src[i], n = src[i + 1];
-    if (q) {
-      out += c;
-      if (c === "\\") { out += n ?? ""; i += 2; continue; }
-      if (c === q) q = null;
-      i++; continue;
-    }
-    if (c === '"' || c === "'" || c === "`") { q = c; out += c; i++; continue; }
-    if (c === "/" && n === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
-    if (c === "/" && n === "*") {
-      const end = src.indexOf("*/", i + 2);
-      const chunk = src.slice(i, end < 0 ? src.length : end + 2);
-      out += chunk.replace(/[^\n]/g, " ");
-      i += chunk.length; continue;
-    }
-    out += c; i++;
-  }
-  return out;
-}
-
 const files = walk(SRC)
   .map((abs) => ({ abs, rel: relative(ROOT, abs), text: readFileSync(abs, "utf8") }))
   .filter((f) => !LOCKED.has(f.rel));
@@ -55,7 +31,8 @@ const problems = [];
 const report = (f, i, rule, line) => problems.push(`${f.rel}:${i + 1}  ${rule}\n      ${line.trim().slice(0, 140)}`);
 const RULE_OK = /rule-ok:\s*\S+(\s+\S+){2,}/; // needs a reason of 3+ words
 
-const MONEY_WORD = /\b(fee|fees|rate|commission|payout|amount|price|total|cents|deposit|balance|charge|earn\w*|subtotal|tax)\b/i;
+// Substring match on purpose: FEE_RATE, platformFee, totalCents must all count.
+const MONEY_WORD = /(fee|rate|commission|payout|amount|price|total|(?<!ac)cent|deposit|balance|charge|earn|tax)/i; // not "accent"
 const LINE_RULES = [
   { rule: "Use .maybeSingle(), never .single() (web rule: .single() errors on zero rows)", test: (l) => /\.single\(/.test(l) },
   { rule: "No `as any` on a Supabase call: the typed client is the point", test: (l) => /(supabase\.|\.rpc\(|functions\.invoke)/.test(l) && /\bas any\b/.test(l) },
@@ -66,6 +43,11 @@ const LINE_RULES = [
   { rule: "No browser globals in app code (window/document/localStorage): use src/platform", test: (l) => /\b(window|document|localStorage|sessionStorage)\./.test(l) },
   { rule: "Banned import: readDashNavFromUrl/clearDashNavFromUrl read window.location. Use platform/links.ts", test: (l) => /\b(readDashNavFromUrl|clearDashNavFromUrl)\b/.test(l) },
   { rule: "Consumer wording: say \"held securely\", never \"escrow\"", test: (l) => /escrow/i.test(l) },
+  // Kit sizes come from tokens (t.*) or the ui constants in kit/theme.tsx. 0 is fine; any other bare number isn't.
+  { rule: "No literal size in the kit: use t.* or ui.* (kit/theme.tsx)",
+    // <Txt size={…}> is exempt: it's a rem font size from the web CSS, scaled by the text-size setting.
+    test: (l) => /\b(width|height|size|lineHeight|letterSpacing|borderRadius|max(Width|Height)|min(Width|Height)|gap|(margin|padding)(Top|Bottom|Left|Right|Horizontal|Vertical)?|shadowRadius|elevation|top|right|bottom|left|border(Top|Bottom|Left|Right)?Width)\s*(:|=\{?)\s*-?(?!0\b)\d/.test(l.replace(/<Txt\b[^>]*/g, (m) => m.replace(/\bsize=\{[\d.]+\}/g, ""))),
+    skip: (f) => !/^src\/kit\//.test(f.rel) || /src\/kit\/theme\.tsx$/.test(f.rel) },
 ];
 
 for (const f of files) {
@@ -94,9 +76,16 @@ for (const f of files) {
 
   // DeadEnd with retry={false} must carry alt=: a refusal with no way out is the
   // exact bug DeadEnd exists to prevent. (The type enforces it; this catches a cast.)
-  for (const m of code.matchAll(/<DeadEnd\b([^>]*)\/?>/g)) {
-    if (/retry=\{\s*false\s*\}/.test(m[1]) && !/\balt=/.test(m[1])) {
-      report(f, code.slice(0, m.index).split("\n").length - 1, "DeadEnd retry={false} needs alt= (a way out)", m[0]);
+  for (const m of code.matchAll(/<DeadEnd\b/g)) {
+    let depth = 0, j = m.index;
+    for (; j < code.length; j++) { // the tag ends at the first > outside {…} (so `() => x` doesn't end it)
+      if (code[j] === "{") depth++;
+      else if (code[j] === "}") depth--;
+      else if (code[j] === ">" && depth === 0) break;
+    }
+    const tag = code.slice(m.index, j + 1);
+    if (/retry=\{\s*false\s*\}/.test(tag) && !/\balt=/.test(tag)) {
+      report(f, code.slice(0, m.index).split("\n").length - 1, "DeadEnd retry={false} needs alt= (a way out)", tag.replace(/\s+/g, " "));
     }
   }
 }

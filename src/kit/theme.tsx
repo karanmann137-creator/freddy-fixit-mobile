@@ -63,6 +63,14 @@ export const ui = {
   grabW: 36, grabH: 4, // .ffu-grab
   switcherDot: 7,     // .ffu-jobchip i
   skRow: 26,          // skeleton avatar = rowIcon
+  skLine: 12, skLineSm: 10, skRadius: 6, skGap: 8, skGapSm: 6,
+  pill: 99,           // fully rounded (web border-radius: 99px)
+  nudge: 1, nudge2: 2, // optical 1-2px alignments the web CSS also uses (margin-top:1px etc.)
+  edge: 2,            // 2px rings/underlines (switcher underline, badge ring, wait-dot ring)
+  readMax: 340,       // comfortable reading width for a centred message
+  shadow: { radius: 16, y: 6, elevation: 6, opacity: 0.4 },
+  icon: { xs: 11, sm: 14, md: 15, lg: 18, xl: 20 },
+  mark: 34,           // logo mark in the Pass top bar
 } as const;
 
 const SETS = { dark: build(rawTokens.dark), light: build(rawTokens.light), onDark: build(rawTokens.onDark) };

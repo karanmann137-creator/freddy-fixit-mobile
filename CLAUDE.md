@@ -19,7 +19,7 @@ goes into an RPC or edge function first, then both clients call it.
 - **A dead end is `<DeadEnd>`**, with a retry or (for a refusal) an `alt`. The type enforces it.
 - **Money:** the app never computes a charge, fee or payout. Pay gates mirror web (PLAN §6.3). "Held securely", never "escrow".
 - **Uploads:** `compressImage()` first; every failure path returns the original.
-- **Kit:** every colour/size from `useTheme().t`, or `ui` in `kit/theme.tsx` for fixed component shapes copied from web CSS. Orange (`primary`, `StateLine turn`) at most once per screen. 48dp touch targets.
+- **Kit:** every colour/size from `useTheme().t`, or `ui` in `kit/theme.tsx` for fixed component shapes copied from web CSS. Orange means "it's on you"; at most one orange call to action (`primary` Button) per screen. 48dp touch targets.
 - **Backward compatibility (new, app-only):** shipped apps run old JavaScript for weeks. An RPC may gain a parameter only with a DEFAULT. Never rename or remove a column, argument or field a shipped build reads until `min_app_version` passes it (PLAN §0).
 
 ## Shared code: `src/lib` and `database.types.ts`

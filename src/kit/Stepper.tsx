@@ -28,16 +28,16 @@ export function Stepper({ steps }: { steps: Step[] }) {
             accessibilityLabel={typeof s.title === "string" ? [s.title, typeof s.sub === "string" ? s.sub : null, LABEL[s.state]].filter(Boolean).join(", ") : undefined}
             style={{ flexDirection: "row", gap: t.s3, paddingVertical: t.s3, paddingHorizontal: t.s4 }}>
             {!last && <View style={{ position: "absolute", left: t.s4 + ui.stepDot / 2 - ui.stepRail / 2, width: ui.stepRail, top: ui.stepRailTop, bottom: -t.s3, backgroundColor: t.hair }} />}
-            <View style={{ width: ui.stepDot, alignItems: "center", marginTop: 2 }}>
-              <View style={[{ width: ui.stepDot, height: ui.stepDot, borderRadius: 99, alignItems: "center", justifyContent: "center" }, dot]}>
-                {s.state === "done" && <Ic name="check" size={11} color={t.surface0e} />}
+            <View style={{ width: ui.stepDot, alignItems: "center", marginTop: ui.nudge2 }}>
+              <View style={[{ width: ui.stepDot, height: ui.stepDot, borderRadius: ui.pill, alignItems: "center", justifyContent: "center" }, dot]}>
+                {s.state === "done" && <Ic name="check" size={ui.icon.xs} color={t.surface0e} />}
               </View>
             </View>
             <View style={{ flex: 1, minWidth: 0 }}>
               {typeof s.title === "string"
                 ? <Txt variant={s.state === "todo" ? "body" : "bodyMedium"} size={0.92} color={s.state === "todo" ? rgba(t.muted, 0.78) : t.text}>{s.title}</Txt>
-                : s.title}
-              {s.sub ? (typeof s.sub === "string" ? <Txt size={0.8} color={rgba(t.muted, 0.9)} style={{ marginTop: 1 }}>{s.sub}</Txt> : s.sub) : null}
+                : <>{s.title}<Txt style={{ position: "absolute", opacity: 0 }} accessibilityLabel={LABEL[s.state]}>{LABEL[s.state]}</Txt></>}
+              {s.sub ? (typeof s.sub === "string" ? <Txt size={0.8} color={rgba(t.muted, 0.9)} style={{ marginTop: ui.nudge }}>{s.sub}</Txt> : s.sub) : null}
             </View>
           </View>
         );

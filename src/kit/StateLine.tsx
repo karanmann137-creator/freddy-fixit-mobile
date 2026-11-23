@@ -40,8 +40,8 @@ export function StateLine({ state, pulse, children }: { state: State; pulse?: bo
     <View accessibilityRole="text" style={{ flexDirection: "row", alignItems: "center", gap: t.s3, minHeight: t.hCtl, paddingHorizontal: t.s4,
       borderRadius: ui.stateRadius, backgroundColor: c.bg, marginBottom: t.s4, overflow: "hidden" }}>
       {c.bar && <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: ui.stateBar, backgroundColor: c.bar }} />}
-      <Animated.View style={[{ width: ui.stateDot, height: ui.stateDot, borderRadius: 99 },
-        c.ring ? { borderWidth: 2, borderColor: rgba(t.muted, 0.8) } : { backgroundColor: c.fg }, dotAnim]} />
+      <Animated.View style={[{ width: ui.stateDot, height: ui.stateDot, borderRadius: ui.pill },
+        c.ring ? { borderWidth: ui.edge, borderColor: rgba(t.muted, 0.8) } : { backgroundColor: c.fg }, dotAnim]} />
       <Txt variant="label" size={1.1} color={c.fg} style={{ flex: 1 }}>{children}</Txt>
     </View>
   );

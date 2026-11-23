@@ -15,8 +15,8 @@ export function AttentionCard({ children, title = "NEEDS YOUR ATTENTION", max = 
   return (
     <View style={{ backgroundColor: t.accentSoft, borderWidth: ui.line, borderColor: t.accentLine, borderRadius: t.r3, overflow: "hidden", marginTop: t.s5 }}>
       <View accessibilityRole="header" style={{ flexDirection: "row", alignItems: "center", gap: t.s2, paddingVertical: t.s3, paddingHorizontal: t.s4, borderBottomWidth: ui.line, borderBottomColor: t.accentLine }}>
-        <Ic name="alert-triangle" size={14} color={t.accent500} />
-        <Txt variant="label" size={0.78} color={t.accent500} style={{ letterSpacing: 1.4 }}>{title}</Txt>
+        <Ic name="alert-triangle" size={ui.icon.sm} color={t.accent500} />
+        <Txt variant="label" size={0.78} color={t.accent500} ls={0.11}>{title}</Txt>
       </View>
       {rows.map((r, i) => (React.isValidElement(r) && r.type === Row
         ? React.cloneElement(r as React.ReactElement<{ _first?: boolean }>, { _first: i === 0 })
@@ -30,8 +30,8 @@ export function TrustLine({ children }: { children: React.ReactNode }) {
   return (
     <View style={{ flexDirection: "row", gap: t.s3, alignItems: "flex-start", marginTop: t.s5, paddingVertical: t.s3, paddingHorizontal: t.s4,
       borderRadius: t.r2, backgroundColor: rgba(t.successRgb, 0.08), borderWidth: ui.line, borderColor: rgba(t.successRgb, 0.2) }}>
-      <View style={{ marginTop: 1 }}><Ic name="check-circle" size={18} color={t.success} /></View>
-      <Txt size={0.82} color={rgba(t.muted, 0.95)} style={{ flex: 1, lineHeight: 19 }}>{children}</Txt>
+      <View style={{ marginTop: ui.nudge }}><Ic name="check-circle" size={ui.icon.lg} color={t.success} /></View>
+      <Txt size={0.82} color={rgba(t.muted, 0.95)} lh={1.5} style={{ flex: 1 }}>{children}</Txt>
     </View>
   );
 }

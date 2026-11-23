@@ -18,7 +18,7 @@ export function Pill({ tone = "neutral", children }: { tone?: PillTone; children
     neutral: { bg: rgba(t.fg, 0.07), fg: rgba(t.muted, 0.9) },
   }[tone];
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: t.s1, height: ui.pillH, paddingHorizontal: t.s2, borderRadius: 99, backgroundColor: c.bg, alignSelf: "flex-start" }}>
+    <View style={{ flexDirection: "row", alignItems: "center", gap: t.s1, height: ui.pillH, paddingHorizontal: t.s2, borderRadius: ui.pill, backgroundColor: c.bg, alignSelf: "flex-start" }}>
       {typeof children === "string" ? <Txt variant="label" size={0.72} color={c.fg}>{children}</Txt> : children}
     </View>
   );

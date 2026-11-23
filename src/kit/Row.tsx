@@ -17,7 +17,7 @@ export function Group({ label, action, children, style }: { label?: string; acti
     <View style={[{ marginTop: t.s6 }, style]}>
       {(label || action) && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2, paddingHorizontal: t.s3, paddingBottom: t.s2 }}>
-          {label ? <Txt variant="label" size={0.78} color={rgba(t.muted, 0.78)} style={{ flex: 1, letterSpacing: 1.4 }} accessibilityRole="header">{label}</Txt> : <View style={{ flex: 1 }} />}
+          {label ? <Txt variant="label" size={0.78} color={rgba(t.muted, 0.78)} ls={0.11} style={{ flex: 1 }} accessibilityRole="header">{label}</Txt> : <View style={{ flex: 1 }} />}
           {action}
         </View>
       )}
@@ -71,19 +71,19 @@ export function Row({ icon, tone = "accent", title, sub, right, amount, chevron,
       <View style={{ width: t.gut }}>
         {icon ? (
           <View style={{ width: ui.rowIcon, height: ui.rowIcon, borderRadius: t.r1, alignItems: "center", justifyContent: "center", backgroundColor: iconSkin.bg }}>
-            <Ic name={icon} size={15} color={iconSkin.fg} />
+            <Ic name={icon} size={ui.icon.md} color={iconSkin.fg} />
           </View>
         ) : null}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         {typeof title === "string" ? <Txt variant="bodyMedium" size={0.95} numberOfLines={2}>{title}</Txt> : title}
-        {sub ? (typeof sub === "string" ? <Txt size={0.82} color={rgba(t.muted, 0.92)} style={{ marginTop: 1 }}>{sub}</Txt> : sub) : null}
+        {sub ? (typeof sub === "string" ? <Txt size={0.82} color={rgba(t.muted, 0.92)} style={{ marginTop: ui.nudge }}>{sub}</Txt> : sub) : null}
       </View>
       {(amount || right || chevron) && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2, marginLeft: t.s3 }}>
           {amount ? (typeof amount === "string" ? <Txt variant="label" size={1}>{amount}</Txt> : amount) : null}
           {typeof right === "string" ? <Txt variant="label" size={0.9} color={rgba(t.muted, 0.8)}>{right}</Txt> : right}
-          {chevron ? <View style={{ opacity: 0.4 }}><Ic name="chevron-down" size={15} rotate={-90} /></View> : null}
+          {chevron ? <View style={{ opacity: 0.4 }}><Ic name="chevron-down" size={ui.icon.md} rotate={-90} /></View> : null}
         </View>
       )}
     </View>

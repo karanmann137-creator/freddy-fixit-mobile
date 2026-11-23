@@ -11,7 +11,7 @@ import React from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { useTheme, rgba } from "./theme";
+import { useTheme, rgba, ui } from "./theme";
 import { Txt } from "./Text";
 import { Button } from "./Button";
 
@@ -24,7 +24,7 @@ export function DeadEnd(p: Props) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: t.bg }}>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", gap: t.s4, padding: t.s6 }}>
-        <Txt style={{ textAlign: "center", lineHeight: 26, maxWidth: 340 }}>{p.msg}</Txt>
+        <Txt lh={1.6} style={{ textAlign: "center", maxWidth: ui.readMax }}>{p.msg}</Txt>
         {p.retry !== false && (
           <Button variant="primary" onPress={p.onRetry}>{p.retryLabel ?? "Try again"}</Button>
         )}

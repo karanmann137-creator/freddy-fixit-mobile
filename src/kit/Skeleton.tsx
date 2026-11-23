@@ -9,7 +9,7 @@ import { rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 import { Button } from "./Button";
 
-export function Sk({ w = "100%", h = 12, r, circle }: { w?: DimensionValue; h?: number; r?: number; circle?: boolean }) {
+export function Sk({ w = "100%", h = ui.skLine, r, circle }: { w?: DimensionValue; h?: number; r?: number; circle?: boolean }) {
   const { t, reduceMotion } = useTheme();
   const o = useSharedValue(1);
   useEffect(() => {
@@ -18,10 +18,10 @@ export function Sk({ w = "100%", h = 12, r, circle }: { w?: DimensionValue; h?: 
     return () => cancelAnimation(o);
   }, [reduceMotion, o]);
   const anim = useAnimatedStyle(() => ({ opacity: o.get() }));
-  return <Animated.View style={[{ width: circle ? h : w, height: h, borderRadius: circle ? 99 : r ?? 6, backgroundColor: rgba(t.fg, 0.08) }, anim]} />;
+  return <Animated.View style={[{ width: circle ? h : w, height: h, borderRadius: circle ? ui.pill : r ?? ui.skRadius, backgroundColor: rgba(t.fg, 0.08) }, anim]} />;
 }
 
-export function SkText({ lines = 3, gap = 8 }: { lines?: number; gap?: number }) {
+export function SkText({ lines = 3, gap = ui.skGap }: { lines?: number; gap?: number }) {
   return <View style={{ gap }}>{Array.from({ length: lines }, (_, i) => <Sk key={i} w={i === lines - 1 ? "62%" : "100%"} />)}</View>;
 }
 
@@ -30,7 +30,7 @@ export function SkRow({ avatar = true }: { avatar?: boolean }) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3, paddingVertical: t.s3, paddingHorizontal: t.s4 }}>
       {avatar && <Sk h={ui.skRow} circle />}
-      <View style={{ flex: 1, gap: 6 }}><Sk w="70%" /><Sk w="40%" h={10} /></View>
+      <View style={{ flex: 1, gap: ui.skGapSm }}><Sk w="70%" /><Sk w="40%" h={ui.skLineSm} /></View>
     </View>
   );
 }

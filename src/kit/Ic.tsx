@@ -4,13 +4,13 @@
 import React from "react";
 import Svg, { Path, Rect, Circle, Polyline, Polygon, Line, Ellipse } from "react-native-svg";
 import { glyphs, type IconName } from "./glyphs.generated";
-import { useTheme } from "./theme";
+import { ui, useTheme } from "./theme";
 
 export type { IconName };
 
 const TAGS = { path: Path, rect: Rect, circle: Circle, polyline: Polyline, polygon: Polygon, line: Line, ellipse: Ellipse } as const;
 
-export function Ic({ name, size = 18, color, rotate }: { name: IconName; size?: number; color?: string; rotate?: number }) {
+export function Ic({ name, size = ui.icon.lg, color, rotate }: { name: IconName; size?: number; color?: string; rotate?: number }) {
   const { t } = useTheme();
   const shapes = glyphs[name];
   if (!shapes && __DEV__) console.warn(`Ic: no glyph "${name}"`);
