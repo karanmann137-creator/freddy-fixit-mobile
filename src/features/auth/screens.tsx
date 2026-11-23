@@ -11,7 +11,8 @@ import { AuthShell } from "./AuthShell";
 import { OAuthButtons } from "./OAuthButtons";
 import { PasswordField } from "./PasswordField";
 import { chooseRole } from "./destination";
-import { continueAfterSignIn, finishSignIn, go, signOut } from "./flow";
+import { abandonSignIn, beginSignIn, continueAfterSignIn, finishSignIn, go, signOut } from "./flow";
+import { kvGet, kvRemove, kvSet } from "@/platform/storage";
 
 const WEB = "https://freddyfixit.ca";
 
@@ -57,8 +58,10 @@ export function SignInScreen() {
   const signIn = async () => {
     if (!email || !password) { setError("Please enter your email and password."); return; }
     setError(""); setNeedsConfirm(false); setNote(""); setBusy(true);
+    await beginSignIn(null);
     const { error: e } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (e) {
+      await abandonSignIn();
       setBusy(false);
       const m = (e.message ?? "").toLowerCase();
       if (m.includes("not confirmed") || (e as { code?: string }).code === "email_not_confirmed") {
@@ -71,7 +74,7 @@ export function SignInScreen() {
       }
       return;
     }
-    await continueAfterSignIn(null); // navigates away
+    await continueAfterSignIn(); // navigates away
   };
 
   const resend = async () => {
@@ -186,7 +189,7 @@ export function AuthProblemScreen() {
   const { t } = useTheme();
   const { msg, role, retry } = useLocalSearchParams<{ msg?: string; role?: string; retry?: string }>();
   const text = msg || "Something went wrong signing you in.";
-  if (retry) return <DeadEnd msg={text} onRetry={() => router.replace("/")} />;
+  if (retry) return <DeadEnd msg={text} onRetry={() => router.replace("/")} />; // the gate resumes any pending sign-in
   // A refusal (e.g. the one-account-type rule): retrying fails the same way, so offer the account they DO have.
   return (
     <DeadEnd retry={false} msg={text} alt={
@@ -212,20 +215,40 @@ export function AdminScreen() {
 }
 
 // ---------------------------------------------------------------- email link (PLAN §4.4: /auth/confirm?token_hash&type)
+const RECOVERY_OK = "ff_recovery_ok"; // set only by a verified recovery link; the new-password screen requires it
+const RECOVERY_TTL_MS = 15 * 60 * 1000;
+const transient = (e: { name?: string; status?: number } | null) =>
+  !!e && (e.name === "AuthRetryableFetchError" || e.status === 0 || (typeof e.status === "number" && e.status >= 500));
+
 export function ConfirmLinkScreen() {
   const { token_hash, type, role } = useLocalSearchParams<{ token_hash?: string; type?: string; role?: string }>();
-  const [failed, setFailed] = useState(false);
+  const [state, setState] = useState<"working" | "spent" | "offline">("working");
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
-    (async () => {
+    let alive = true;
+    (async (): Promise<"spent" | "offline" | null> => {
       const kind = type === "recovery" ? "recovery" : type === "magiclink" ? "magiclink" : type === "email_change" ? "email_change" : "signup";
-      if (!token_hash) { setFailed(true); return; }
+      if (!token_hash) return "spent";
+      const wanted = role === "contractor" || role === "client" ? role : null;
+      await beginSignIn(wanted); // every verified link is a session, recovery included
       const { error } = await supabase.auth.verifyOtp({ token_hash, type: kind });
-      if (error) { setFailed(true); return; }
-      if (kind === "recovery") { router.replace("/update-password"); return; }
-      await continueAfterSignIn(role === "contractor" || role === "client" ? role : null);
-    })();
-  }, [token_hash, type, role]);
-  if (failed) {
+      if (error) {
+        await abandonSignIn();
+        return transient(error) ? "offline" : "spent"; // an offline tap didn't use the link up: say so
+      }
+      if (kind === "recovery") { await kvSet(RECOVERY_OK, String(Date.now())); router.replace("/update-password"); return null; }
+      await continueAfterSignIn();
+      return null;
+    })()
+      .catch(() => "offline" as const)
+      .then((r) => { if (alive && r) setState(r); });
+    return () => { alive = false; };
+  }, [token_hash, type, role, attempt]);
+  if (state === "offline") {
+    return <DeadEnd msg="We couldn't reach Freddy Fix It to check this link. Your link still works. Check your connection, then try again."
+      onRetry={() => { setState("working"); setAttempt((n) => n + 1); }} />;
+  }
+  if (state === "spent") {
     return <DeadEnd retry={false} msg="This link has expired or was already used." alt={<Button onPress={() => router.replace("/welcome")}>Go to sign in</Button>} />;
   }
   return <AuthShell title="Signing you in…"><View /></AuthShell>;
@@ -240,8 +263,14 @@ export function UpdatePasswordScreen() {
   const [busy, setBusy] = useState(false);
   const [breached, setBreached] = useState(false);
   useEffect(() => {
-    // Reached right after ConfirmLinkScreen verified a recovery link, so a session must exist.
-    supabase.auth.getSession().then(({ data }) => setPhase(data.session ? "ready" : "invalid")).catch(() => setPhase("invalid"));
+    // Only a recovery link verified moments ago opens this screen (review G3 #5): some other
+    // signed-in session must never be the one whose password gets changed.
+    (async () => {
+      const at = Number((await kvGet(RECOVERY_OK)) || 0);
+      if (!at || Date.now() - at > RECOVERY_TTL_MS) return "invalid" as const;
+      const { data } = await supabase.auth.getSession();
+      return data.session ? ("ready" as const) : ("invalid" as const);
+    })().catch(() => "invalid" as const).then(setPhase);
   }, []);
   const submit = async () => {
     setErr("");
@@ -252,9 +281,10 @@ export function UpdatePasswordScreen() {
     const { error } = await supabase.auth.updateUser({ password: pw });
     setBusy(false);
     if (error) { setErr("We couldn't update your password. The link may have expired. Request a new one."); return; }
+    await kvRemove(RECOVERY_OK);
     setPhase("done");
     notify("Password updated");
-    await continueAfterSignIn(null); // same rule as web: a new password still meets the two-step code
+    await continueAfterSignIn(); // same rule as web: a new password still meets the two-step code
   };
   if (phase === "checking") return <AuthShell title="Checking your link…"><View /></AuthShell>;
   if (phase === "invalid") {

@@ -4,7 +4,10 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 // Web paths the app opens directly (iOS universal links / Android App Links). The web
 // side publishes the matching apple-app-site-association + assetlinks.json (PLAN W3c).
 // Any other freddyfixit.ca link stays in the browser.
-const APP_LINK_PATHS = ["/auth/confirm", "/update-password", "/pick/", "/app/return/", "/contractors/"];
+// Add a path here only when its screen exists AND the emails that point at it are ready:
+// /update-password stays out until the reset email uses /auth/confirm?type=recovery (W3b),
+// so an old-style reset link can never open the app on someone else's session.
+const APP_LINK_PATHS = ["/auth/confirm"]; // later: "/pick/" (4.6), "/app/return/" (4.8), "/contractors/" (5.11)
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   // Google's iOS SDK needs the reversed iOS client id as a URL scheme. No id = no Google

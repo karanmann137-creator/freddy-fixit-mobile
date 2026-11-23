@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 import { View } from "react-native";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Button, FormNote, Ic, Txt, useTheme } from "@/kit";
-import { appleAvailable, googleAvailable, saveFirstSignInName, signInWithApple, signInWithGoogle } from "./oauth";
-import { continueAfterSignIn } from "./flow";
+import { appleAvailable, googleAvailable, signInWithApple, signInWithGoogle } from "./oauth";
+import { abandonSignIn, beginSignIn, continueAfterSignIn, rememberFirstSignInName } from "./flow";
 import type { WantedRole } from "./destination";
 
 export function OAuthButtons({ wantedRole = null, signInSurface }: { wantedRole?: WantedRole; signInSurface: boolean }) {
@@ -19,10 +19,16 @@ export function OAuthButtons({ wantedRole = null, signInSurface }: { wantedRole?
 
   const run = async (which: "google" | "apple") => {
     setErr(""); setBusy(which);
+    await beginSignIn(wantedRole); // before the provider call: a kill after this resumes the pipeline
     const r = which === "google" ? await signInWithGoogle(signInSurface) : await signInWithApple();
-    if (!r.ok) { setBusy(null); if (!("cancelled" in r && r.cancelled)) setErr((r as { message: string }).message); return; }
-    if (which === "apple") await saveFirstSignInName(r.firstName, r.lastName);
-    await continueAfterSignIn(wantedRole); // navigates away; leave busy on
+    if (!r.ok) {
+      await abandonSignIn();
+      setBusy(null);
+      if (!("cancelled" in r && r.cancelled)) setErr((r as { message: string }).message);
+      return;
+    }
+    if (which === "apple") await rememberFirstSignInName(r.firstName, r.lastName); // saved once the profile row is certain
+    await continueAfterSignIn(); // navigates away; leave busy on
   };
 
   return (

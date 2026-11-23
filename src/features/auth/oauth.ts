@@ -73,18 +73,3 @@ export async function signInWithApple(): Promise<OAuthResult> {
     return { ok: false, message: "Sign in with Apple didn't work just now. Try again." };
   }
 }
-
-/** Save Apple's one-time name onto the profile, without overwriting a name already there. Never throws. */
-export async function saveFirstSignInName(firstName?: string | null, lastName?: string | null): Promise<void> {
-  if (!firstName && !lastName) return;
-  try {
-    const { data: u } = await supabase.auth.getUser();
-    const id = u.user?.id;
-    if (!id) return;
-    const { data: p } = await supabase.from("profiles").select("first_name, last_name").eq("id", id).maybeSingle();
-    const patch: { first_name?: string; last_name?: string } = {};
-    if (firstName && !p?.first_name) patch.first_name = firstName;
-    if (lastName && !p?.last_name) patch.last_name = lastName;
-    if (Object.keys(patch).length) await supabase.from("profiles").update(patch).eq("id", id);
-  } catch { /* the name is a nicety; never block a sign-in on it */ }
-}

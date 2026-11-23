@@ -39,6 +39,13 @@ const ROLE_CHOSEN_KEY = "ff_role_chosen";
 const OFFLINE = "We couldn't reach Freddy Fix It just now. Check your connection, then try again.";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** A PERMANENT refusal (the one-account-type rule) is shown as a refusal; a transient
+ *  failure (network, row not ready) is Retry. roleWrite's own text says "refresh the
+ *  page", which a phone doesn't have, so transient failures use the app's wording. */
+function refused(w: { reason: string; permanent: boolean }, role: string | null): Destination {
+  return w.permanent ? { kind: "blocked", msg: w.reason, role } : { kind: "error", msg: OFFLINE };
+}
+
 function byRole(role: string | null | undefined): Destination {
   if (role === "admin") return { kind: "admin" };
   if (role === "contractor") return { kind: "contractor" };
@@ -73,7 +80,7 @@ export async function resolveDestination(userId: string, wantedRole: WantedRole)
   if (wantedRole === "contractor") {
     if (role === "admin") return byRole(role);
     const w = await setMyRole(userId, "contractor");
-    if (!w.ok) return { kind: "blocked", msg: w.reason, role };
+    if (!w.ok) return refused(w, role);
     const c = await hasContractorRow(userId);
     if (c === null) return { kind: "error", msg: OFFLINE };
     return c ? { kind: "contractor" } : { kind: "contractorOnboarding" };
@@ -105,7 +112,7 @@ export async function resolveDestination(userId: string, wantedRole: WantedRole)
 /** The chooser's write. Never marks "chosen" after a refused write (that would strand the role). */
 export async function chooseRole(userId: string, role: "client" | "contractor"): Promise<Destination> {
   const w = await setMyRole(userId, role);
-  if (!w.ok) return { kind: "blocked", msg: w.reason, role: null };
+  if (!w.ok) return refused(w, null);
   await kvSet(ROLE_CHOSEN_KEY, "1");
   return role === "contractor" ? { kind: "contractorOnboarding" } : { kind: "client" };
 }
