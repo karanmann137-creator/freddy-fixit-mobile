@@ -237,6 +237,24 @@ const MOUNTS = [
   { file: "src/features/request/GetStartedScreen.tsx", needle: "clearDraft(ONBOARDING_DRAFT_KEY)", min: 2, why: "both terminal screens clear the draft: the request exists now (no session and session paths)" },
   { file: "src/features/request/GetStartedScreen.tsx", needle: "identities?.length", min: 1, why: "email-confirm mode answers an existing email with a fake success; without the check it reads as a new signup" },
   { file: "src/features/auth/destination.ts", needle: "applyReferralAtSignup(", min: 2, why: "the stashed referral is applied on the client funnel AND the no-intent sign-in after a web email link (review G4a #1)" },
+  // Phase 5.2: contractor signup + onboarding. Same pipeline, same rows as web.
+  { file: "src/features/auth/screens.tsx", needle: '"/contractor-onboarding"', min: 1, why: "Welcome's 'Join as a contractor' must open the native funnel" },
+  { file: "src/app/contractor-onboarding.tsx", needle: "ContractorOnboardingScreen", min: 1, why: "the route contractorHome sends new contractors to must be the real screen, not a placeholder" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: 'beginSignIn("contractor")', min: 1, why: "the pending record (contractor intent) must exist BEFORE signUp can create a session" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: "continueAfterSignIn()", min: 1, why: "a new signup must enter through the pipeline: two-step code and the never-demote role rules" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: "abandonSignIn()", min: 3, why: "a failed or session-less signup must drop the pending record (duplicate, no-session, error)" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: "identities?.length", min: 1, why: "email-confirm mode answers an existing email with a fake success; without the check it reads as a new signup" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: 'stashTermsConsent("signup-contractor")', min: 2, why: "the terms tick is the legal record: stashed on BOTH branches (signup survives the email detour; signed-in redeems at once)" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: "redeemStashedTermsConsent()", min: 1, why: "with a session, the tick is recorded at once (web)" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: 'setMyRole(userId, "contractor")', min: 1, why: "the signed-in branch's role write goes through setMyRole (role_change_block asked first), never a bare update" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: "contractorHome(", min: 2, why: "'already onboarded?' and 'done, go home' must be destination.ts's test, or the screen and the pipeline loop" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: 'bucket: "contractor-docs"', min: 1, why: "verification documents go to the private contractor-docs bucket the reviewer reads" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: 'profile: "document"', min: 1, why: "documents use the gentle compress profile so small print survives for the reviewer (G5a)" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: 'functions.invoke("review-contractor", { body: { contractor_id: userId } })', min: 1, why: "uploaded documents are never reviewed without the call, and nothing errors" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: 'from("contractors").upsert(', min: 1, why: "the signed-in branch's answers (and doc_urls) land only through this write" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: "kvRemove(CONTRACTOR_DRAFT_KEY)", min: 2, why: "both terminal screens clear the draft, or a finished signup is offered back as unfinished" },
+  { file: "src/features/contractor/OnboardingScreen.tsx", needle: "!busy.current", min: 1, why: "the screen's own signUp must not re-run the auth check under a form that is mid-save" },
+  { file: "src/lib/imageCompress.ts", needle: 't === "application/pdf"', min: 1, why: "PDFs must pass through compressImage untouched (web: the document profile never re-encodes a PDF)" },
 ];
 for (const m of MOUNTS) {
   let text = "";
