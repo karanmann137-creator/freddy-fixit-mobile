@@ -28,7 +28,7 @@ export function OAuthButtons({ wantedRole = null, signInSurface }: { wantedRole?
       return;
     }
     if (which === "apple") await rememberFirstSignInName(r.firstName, r.lastName); // saved once the profile row is certain
-    await continueAfterSignIn(); // navigates away; leave busy on
+    try { await continueAfterSignIn(); } catch { setBusy(null); setErr("Something went wrong finishing your sign-in. Try again."); } // success navigates away
   };
 
   return (

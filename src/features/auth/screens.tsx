@@ -74,7 +74,7 @@ export function SignInScreen() {
       }
       return;
     }
-    await continueAfterSignIn(); // navigates away
+    try { await continueAfterSignIn(); } catch { setBusy(false); setError("Something went wrong finishing your sign-in. Try again."); }
   };
 
   const resend = async () => {
@@ -189,7 +189,9 @@ export function AuthProblemScreen() {
   const { t } = useTheme();
   const { msg, role, retry } = useLocalSearchParams<{ msg?: string; role?: string; retry?: string }>();
   const text = msg || "Something went wrong signing you in.";
-  if (retry) return <DeadEnd msg={text} onRetry={() => router.replace("/")} />; // the gate resumes any pending sign-in
+  // The gate resumes any pending sign-in on Retry. Sign out too: a failure that isn't the
+  // network (e.g. an account that never finishes setting up) must not trap anyone (review G3 F3).
+  if (retry) return <DeadEnd msg={text} onRetry={() => router.replace("/")} alt={<Button variant="ghost" onPress={() => void signOut()}>Sign out</Button>} />;
   // A refusal (e.g. the one-account-type rule): retrying fails the same way, so offer the account they DO have.
   return (
     <DeadEnd retry={false} msg={text} alt={

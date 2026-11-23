@@ -23,7 +23,7 @@ import { notify } from "@/kit";
 import { resolveDestination, type Destination, type WantedRole } from "./destination";
 
 const PENDING = "ff_signin_pending";
-type Pending = { wanted: WantedRole; codeOwed?: boolean; firstName?: string | null; lastName?: string | null };
+type Pending = { wanted: WantedRole; codeOwed?: boolean; firstName?: string | null; lastName?: string | null; prev?: Pending | null };
 
 export function go(d: Destination) {
   switch (d.kind) {
@@ -37,12 +37,20 @@ export function go(d: Destination) {
   }
 }
 
-/** Call BEFORE the provider's sign-in call. */
+/** Call BEFORE the provider's sign-in call. Keeps the record it replaces, so a failed
+ *  attempt can put it back (review G3 F1: a bad link tapped mid-code must not erase codeOwed). */
 export async function beginSignIn(wanted: WantedRole = null): Promise<void> {
-  await kvSetJson(PENDING, { wanted } satisfies Pending);
+  const prev = await kvGetJson<Pending>(PENDING);
+  await kvSetJson(PENDING, { wanted, prev: prev ? { ...prev, prev: null } : null } satisfies Pending);
 }
-/** The provider call failed or was cancelled: there's no session to resume. */
-export async function abandonSignIn(): Promise<void> { await kvRemove(PENDING); }
+/** The provider call failed or was cancelled: restore the record it replaced (or none). */
+export async function abandonSignIn(): Promise<void> {
+  const p = await kvGetJson<Pending>(PENDING);
+  if (p?.prev) await kvSetJson(PENDING, p.prev);
+  else await kvRemove(PENDING);
+}
+/** A real destination was reached or the session ended: forget the record entirely. */
+async function clearSignIn(): Promise<void> { await kvRemove(PENDING); }
 
 /** Apple sends the name ONCE. Keep it in the pending record until it's safely on the profile. */
 export async function rememberFirstSignInName(firstName?: string | null, lastName?: string | null): Promise<void> {
@@ -52,6 +60,8 @@ export async function rememberFirstSignInName(firstName?: string | null, lastNam
 }
 
 export async function pendingSignIn(): Promise<Pending | null> { return kvGetJson<Pending>(PENDING); }
+/** For the root gate when nobody is signed in: drop any leftover record. */
+export async function forgetSignIn(): Promise<void> { await clearSignIn(); }
 
 /** After ANY successful sign-in (and on relaunch when a sign-in was left unfinished). */
 export async function continueAfterSignIn(): Promise<void> {
@@ -69,13 +79,13 @@ export async function finishSignIn(): Promise<void> {
   const p = (await kvGetJson<Pending>(PENDING)) ?? { wanted: null };
   const a = await readAuthUser();
   if (a.kind === "unknown") return go({ kind: "error", msg: "We couldn't confirm your sign-in just now. Check your connection, then try again." });
-  if (a.kind === "signedOut") { await abandonSignIn(); router.replace("/welcome"); return; }
+  if (a.kind === "signedOut") { await clearSignIn(); router.replace("/welcome"); return; }
   if (p.codeOwed) await kvSetJson(PENDING, { ...p, codeOwed: false }); // the code was just verified
   const d = await resolveDestination(a.userId, p.wanted);
   if (d.kind === "error") return go(d); // keep the record: Retry resumes with the same intent
   // The profile row is guaranteed now (resolveDestination ensured it), so the one-time name can land.
   const nameSaved = await saveFirstSignInName(a.userId, p.firstName, p.lastName);
-  if (nameSaved) await abandonSignIn();
+  if (nameSaved) await clearSignIn();
   else await kvSetJson(PENDING, { wanted: null, firstName: p.firstName, lastName: p.lastName }); // retry next launch
   go(d);
 }
@@ -112,7 +122,8 @@ export async function signOut(): Promise<boolean> {
     notify("We couldn't finish signing you out. Try again.", "danger");
     return false; // the pending record stays, so a relaunch still asks for any owed code
   }
-  await abandonSignIn();
+  await clearSignIn();
+  await kvRemove("ff_recovery_ok"); // N3: a reset link's 15-minute window ends with the session
   router.replace("/welcome");
   return true;
 }

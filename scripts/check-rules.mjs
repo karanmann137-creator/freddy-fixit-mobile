@@ -164,7 +164,7 @@ const MOUNTS = [
   { file: "src/features/auth/flow.ts", needle: "await mfaOwed()", min: 1, why: "without it two-step sign-in is silently skipped on every route" },
   { file: "src/features/auth/OAuthButtons.tsx", needle: "continueAfterSignIn(", min: 1, why: "Google/Apple would skip the code and the role rules (web 2026-11-04)" },
   { file: "src/features/auth/screens.tsx", needle: "continueAfterSignIn(", min: 3, why: "password sign-in, email link and new password must each go through the pipeline" },
-  { file: "src/app/index.tsx", needle: "pendingSignIn()", min: 1, why: "a sign-in killed mid-way would skip the code on relaunch" },
+  { file: "src/app/index.tsx", needle: "continueAfterSignIn()", min: 1, why: "the launch gate must ask the server for an owed two-step code (PLAN §4.2 step 2)" },
   { file: "src/features/auth/OAuthButtons.tsx", needle: "beginSignIn(", min: 1, why: "the pending record must exist BEFORE the provider creates a session" },
   { file: "src/features/auth/screens.tsx", needle: "beginSignIn(", min: 2, why: "password sign-in and every email link record the pending sign-in first" },
   { file: "src/features/auth/destination.ts", needle: 'role === "admin"', min: 3, why: "an established admin must win on EVERY funnel branch (web 2026-11-09 demotion)" },
