@@ -71,6 +71,7 @@ export const ui = {
   shadow: { radius: 16, y: 6, elevation: 6, opacity: 0.4 },
   icon: { xs: 11, sm: 14, md: 15, lg: 18, xl: 20 },
   mark: 34,           // logo mark in the Pass top bar
+  iconStroke: 1.75,   // Lucide stroke width (web Ic.tsx)
 } as const;
 
 const SETS = { dark: build(rawTokens.dark), light: build(rawTokens.light), onDark: build(rawTokens.onDark) };

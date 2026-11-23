@@ -218,7 +218,7 @@ logs in dev when a name is unknown.
 | `StateLine` (`State`) | same | **The palette gate:** orange only when the answer is "you". This is the same rule as web, so port the docblock. |
 | `Pass`, `PassTop`, `IconButton` | same | `forceNavy` default true → wraps children in the `onDark` token set. `IconButton` badge is 44→48dp. |
 | `Hero`, `HeroSub`, `PassMeta`, `PassMetaItem` | same | radial accent glow → `react-native-svg` RadialGradient |
-| `JobSwitcher` (`SwitcherJob`) | same | horizontal `ScrollView` chips (`.ffd-tab` look); a filter, not a tablist |
+| `JobSwitcher` (`SwitcherJob`) | same | horizontal `ScrollView` of job tabs (tablist/tab roles, as on web); a filter over the dashboard, not navigation |
 | `Group`, `Sheet`, `Row` (`RowTone`) | `Group`, `Card`, `Row` | **Renamed `Sheet` → `Card`** because "sheet" means bottom sheet on mobile. `Row` is pressable only when given `onPress`. One `gut` is shared by the icon column and the separator. The icon wrapper renders even with no icon. |
 | `Stepper` (`Step`, `StepState`) | same | vertical timeline, 18px node, 1.5px rail |
 | `AttentionCard`, `TrustLine` | same | `max` prop: **3 client / 4 contractor**. Returns null when empty. Money-gating rows first. |

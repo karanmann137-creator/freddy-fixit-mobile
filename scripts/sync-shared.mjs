@@ -23,7 +23,7 @@ import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { importTimeHits } from "./lib/source.mjs";
+import { importTimeGlobals } from "./lib/source.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB_REPO = "https://github.com/karanmann137-creator/freddy-fixit";
@@ -81,7 +81,7 @@ for (const name of SHARED) {
   const src = read(`src/lib/${name}.ts`);
   // Browser globals are fine inside a function the app never calls (e.g. notificationRoutes'
   // URL helpers, banned by check-rules), but not in a top-level statement, which runs at import.
-  const hits = importTimeHits(src);
+  const hits = importTimeGlobals(src, `${name}.ts`);
   if (hits.length) throw new Error(`${name}.ts touches a browser global at import time (it would crash the app on launch): ${hits[0]}`);
   out(`src/lib/${name}.ts`,
     `// SYNCED from freddy-fixit@${short}:src/lib/${name}.ts. DO NOT EDIT HERE.\n` +

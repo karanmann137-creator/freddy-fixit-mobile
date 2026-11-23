@@ -16,7 +16,7 @@ export function Ic({ name, size = ui.icon.lg, color, rotate }: { name: IconName;
   if (!shapes && __DEV__) console.warn(`Ic: no glyph "${name}"`);
   const stroke = color ?? t.text;
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={1.75}
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={ui.iconStroke}
       strokeLinecap="round" strokeLinejoin="round" style={rotate ? { transform: [{ rotate: `${rotate}deg` }] } : undefined}
       accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {(shapes ?? []).map(([tag, attrs], i) => {

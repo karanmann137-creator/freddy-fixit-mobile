@@ -1,74 +1,83 @@
-// Small source-text helpers shared by the check and sync scripts. Not a parser:
-// they're deliberately simple, and each limit is written next to the code.
+// Source analysis for check-rules and sync-shared, built on the TypeScript
+// compiler's own parser (already a dev dependency). Earlier regex versions
+// kept losing track of strings, regex literals, JSX text and comments. A parser
+// can't, so these answers are structural, not textual.
+import ts from "typescript";
 
-/** Remove // and /* *\/ comments, keeping strings and line breaks.
- *  A `//` inside a string ("https://…") is NOT a comment. With blankStrings,
- *  string contents become spaces too (quotes kept), so a word inside a string
- *  can't match a code pattern. */
-export function stripComments(src, { blankStrings = false } = {}) {
-  let out = "", i = 0, q = null;
-  while (i < src.length) {
-    const c = src[i], n = src[i + 1];
-    if (q) {
-      if (c === "\\") { out += blankStrings ? "  " : c + (n ?? ""); i += 2; continue; }
-      if (c === q) { q = null; out += c; i++; continue; }
-      out += blankStrings && c !== "\n" ? " " : c; i++; continue;
-    }
-    if (c === '"' || c === "'" || c === "`") { q = c; out += c; i++; continue; }
-    if (c === "/" && n === "/") { while (i < src.length && src[i] !== "\n") i++; continue; }
-    if (c === "/" && n === "*") {
-      const end = src.indexOf("*/", i + 2);
-      const chunk = src.slice(i, end < 0 ? src.length : end + 2);
-      out += chunk.replace(/[^\n]/g, " ");
-      i += chunk.length; continue;
-    }
-    out += c; i++;
-  }
-  return out;
+export function parse(text, fileName = "x.tsx") {
+  return ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, fileName.endsWith(".ts") ? ts.ScriptKind.TS : ts.ScriptKind.TSX);
 }
 
-const CONTROL = /\b(if|for|while|switch|catch|with)\s*$/;
-const BLOCK_KW = /\b(else|try|finally|do|static)\s*$/;
-
-/** The text that runs at IMPORT time: everything not inside a function body.
- *  A `{` opens a function body when it follows `=>`, or follows `)` whose
- *  matching `(` isn't preceded by if/for/while/switch/catch. Object literals,
- *  class bodies and top-level if/try blocks count as import-time (conservative).
- *  Brace-less arrow bodies are handled by `importTimeHits` (statement-level `=>`). */
-export function importTimeText(src) {
-  const code = stripComments(src, { blankStrings: true });
-  const stack = []; // true = function body
-  let out = "";
-  for (let i = 0; i < code.length; i++) {
-    const c = code[i];
-    const inFn = stack.includes(true);
-    if (c === "{") {
-      const before = code.slice(0, i).replace(/\s+$/, "");
-      let fn = false;
-      if (before.endsWith("=>")) fn = true;
-      else if (before.endsWith(")")) {
-        let d = 0, j = before.length - 1;
-        for (; j >= 0; j--) { if (before[j] === ")") d++; else if (before[j] === "(" && --d === 0) break; }
-        fn = !CONTROL.test(before.slice(0, j));
-      } else if (BLOCK_KW.test(before)) fn = false;
-      else if (/:\s*[\w<>[\]|, .]+$/.test(before) && /\)\s*:/.test(before.slice(-200))) fn = true; // `): Type {`
-      stack.push(fn);
-      out += inFn || fn ? " " : c;
-      continue;
-    }
-    if (c === "}") { stack.pop(); out += stack.includes(true) ? " " : c; continue; }
-    out += inFn && c !== "\n" ? " " : c;
-  }
-  return out;
+export function walk(node, fn, parents = []) {
+  fn(node, parents);
+  const next = [...parents, node];
+  node.forEachChild((c) => walk(c, fn, next));
 }
 
-// Not after a "." (x.document, a regex like /a\.document/) and not an object key (document: ...).
-const GLOBAL = /(?<![.\w$])(window|document|localStorage|sessionStorage)\b(?!\s*:)/;
-/** Import-time statements that touch a browser global (`typeof window` is fine). */
-export function importTimeHits(src) {
-  return importTimeText(src)
-    .split(/;|\n/)
-    .map((s) => s.replace(/\btypeof\s+(window|document|localStorage|sessionStorage)\b/g, ""))
-    .filter((s) => { const m = s.match(GLOBAL); return m && !s.slice(0, m.index).includes("=>"); })
-    .map((s) => s.trim());
+export const lineOf = (sf, pos) => sf.getLineAndCharacterOfPosition(pos).line;
+
+/** The text with every comment replaced by spaces (line breaks kept), so a
+ *  line-based check never sees a comment and never mistakes a string for one. */
+export function blankComments(text, sf = parse(text)) {
+  const chars = text.split("");
+  const seen = new Set();
+  const blank = (r) => {
+    if (seen.has(r.pos)) return;
+    seen.add(r.pos);
+    for (let i = r.pos; i < r.end; i++) if (chars[i] !== "\n") chars[i] = " ";
+  };
+  const visit = (n) => {
+    (ts.getLeadingCommentRanges(text, n.pos) ?? []).forEach(blank);
+    (ts.getTrailingCommentRanges(text, n.end) ?? []).forEach(blank);
+    n.getChildren(sf).forEach(visit); // getChildren includes tokens, so every trivia run is reached
+  };
+  visit(sf);
+  return chars.join("");
+}
+
+const GLOBALS = new Set(["window", "document", "localStorage", "sessionStorage"]);
+
+/** Identifier nodes that refer to a browser global as a VALUE: not `x.document`,
+ *  not an object key, not a type, not JSX text. `typeof window` is excluded
+ *  (it's the safe feature test). */
+export function browserGlobalRefs(sf) {
+  const hits = [];
+  walk(sf, (n, parents) => {
+    if (!ts.isIdentifier(n) || !GLOBALS.has(n.text)) return;
+    const p = parents[parents.length - 1];
+    if (p && ts.isPropertyAccessExpression(p) && p.name === n) return; // x.document
+    if (p && (ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p)) && p.name === n) return; // { document: … }
+    if (p && ts.isTypeOfExpression(p)) return; // typeof window
+    if (parents.some((a) => ts.isTypeNode(a))) return;
+    if (p && (ts.isImportSpecifier(p) || ts.isExportSpecifier(p) || ts.isParameter(p) || ts.isVariableDeclaration(p) && p.name === n)) return;
+    hits.push({ node: n, parents });
+  });
+  return hits;
+}
+
+const isFnLike = (n) => ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) ||
+  ts.isMethodDeclaration(n) || ts.isGetAccessor(n) || ts.isSetAccessor(n) || ts.isConstructorDeclaration(n);
+
+/** Is parents[i] (a function) called right where it's defined, e.g. `(() => {...})()`?
+ *  Then its body runs when the enclosing code runs (at top level: import time). */
+function isIIFE(parents, i) {
+  let child = parents[i], j = i - 1;
+  while (j >= 0 && ts.isParenthesizedExpression(parents[j])) { child = parents[j]; j--; }
+  return j >= 0 && ts.isCallExpression(parents[j]) && parents[j].expression === child;
+}
+
+/** Browser globals used by code that runs at IMPORT time (top level, including
+ *  top-level IIFE bodies and class static blocks), which would crash a React
+ *  Native app on launch. Uses inside ordinary functions are fine: the app can
+ *  simply never call them. */
+export function importTimeGlobals(text, fileName) {
+  const sf = parse(text, fileName);
+  return browserGlobalRefs(sf)
+    .filter(({ parents }) => {
+      for (let i = parents.length - 1; i >= 0; i--) {
+        if (isFnLike(parents[i]) && !isIIFE(parents, i)) return false; // inside a real function
+      }
+      return true;
+    })
+    .map(({ node }) => `line ${lineOf(sf, node.getStart(sf)) + 1}: ${node.parent.getText(sf).slice(0, 90)}`);
 }
