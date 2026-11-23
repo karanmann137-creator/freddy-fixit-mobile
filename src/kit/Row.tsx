@@ -7,8 +7,8 @@
 // Row is pressable only when given onPress.
 import React from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
-import { rgba, useTheme } from "./theme";
-import { Txt } from "./Text";
+import { rgba, ui, useTheme } from "./theme";
+import { Txt, isTextLike } from "./Text";
 import { Ic, type IconName } from "./Ic";
 
 export function Group({ label, action, children, style }: { label?: string; action?: React.ReactNode; children: React.ReactNode; style?: ViewStyle }) {
@@ -17,7 +17,7 @@ export function Group({ label, action, children, style }: { label?: string; acti
     <View style={[{ marginTop: t.s6 }, style]}>
       {(label || action) && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2, paddingHorizontal: t.s3, paddingBottom: t.s2 }}>
-          {label ? <Txt variant="label" size={0.78} color={rgba(t.muted, 0.78)} style={{ flex: 1, letterSpacing: 1.4 }} accessibilityRole="header">{label}</Txt> : <View style={{ flex: 1 }} />}
+          {label ? <Txt variant="label" size={0.78} color={rgba(t.muted, 0.78)} ls={0.11} style={{ flex: 1 }} accessibilityRole="header">{label}</Txt> : <View style={{ flex: 1 }} />}
           {action}
         </View>
       )}
@@ -67,23 +67,23 @@ export function Row({ icon, tone = "accent", title, sub, right, amount, chevron,
   const body = (pressed: boolean) => (
     <View style={{ flexDirection: "row", alignItems: "center", minHeight: t.hRow, paddingVertical: t.s3, paddingHorizontal: t.s4,
       backgroundColor: active ? t.accentSoft : pressed ? rgba(t.fg, 0.05) : "transparent" }}>
-      {!_first && <View style={{ position: "absolute", top: 0, left: t.s4 + t.gut, right: 0, height: 1, backgroundColor: t.hair }} />}
+      {!_first && <View style={{ position: "absolute", top: 0, left: t.s4 + t.gut, right: 0, height: ui.line, backgroundColor: t.hair }} />}
       <View style={{ width: t.gut }}>
         {icon ? (
-          <View style={{ width: 26, height: 26, borderRadius: t.r1, alignItems: "center", justifyContent: "center", backgroundColor: iconSkin.bg }}>
-            <Ic name={icon} size={15} color={iconSkin.fg} />
+          <View style={{ width: ui.rowIcon, height: ui.rowIcon, borderRadius: t.r1, alignItems: "center", justifyContent: "center", backgroundColor: iconSkin.bg }}>
+            <Ic name={icon} size={ui.icon.md} color={iconSkin.fg} />
           </View>
         ) : null}
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
-        {typeof title === "string" ? <Txt variant="bodyMedium" size={0.95} numberOfLines={2}>{title}</Txt> : title}
-        {sub ? (typeof sub === "string" ? <Txt size={0.82} color={rgba(t.muted, 0.92)} style={{ marginTop: 1 }}>{sub}</Txt> : sub) : null}
+        {isTextLike(title) ? <Txt variant="bodyMedium" size={0.95} numberOfLines={2}>{title}</Txt> : title}
+        {sub != null && sub !== false ? (isTextLike(sub) ? <Txt size={0.82} color={rgba(t.muted, 0.92)} style={{ marginTop: ui.nudge }}>{sub}</Txt> : sub) : null}
       </View>
-      {(amount || right || chevron) && (
+      {((amount != null && amount !== false) || (right != null && right !== false) || chevron) && (
         <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2, marginLeft: t.s3 }}>
-          {amount ? (typeof amount === "string" ? <Txt variant="label" size={1}>{amount}</Txt> : amount) : null}
-          {typeof right === "string" ? <Txt variant="label" size={0.9} color={rgba(t.muted, 0.8)}>{right}</Txt> : right}
-          {chevron ? <View style={{ opacity: 0.4 }}><Ic name="chevron-down" size={15} rotate={-90} /></View> : null}
+          {amount != null && amount !== false ? (isTextLike(amount) ? <Txt variant="label" size={1}>{amount}</Txt> : amount) : null}
+          {isTextLike(right) ? <Txt variant="label" size={0.9} color={rgba(t.muted, 0.8)}>{right}</Txt> : right}
+          {chevron ? <View style={{ opacity: 0.4 }}><Ic name="chevron-down" size={ui.icon.md} rotate={-90} /></View> : null}
         </View>
       )}
     </View>

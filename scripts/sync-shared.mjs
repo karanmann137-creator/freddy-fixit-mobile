@@ -2,7 +2,9 @@
 // Pulls the shared web modules into this repo. See PLAN.md §2.
 //
 //   npm run sync                      fetch karanmann137-creator/freddy-fixit@main
-//   npm run sync -- --ref <sha|branch>
+//   npm run sync -- --ref <sha|branch|tag>
+//   npm run sync -- --locked          re-fetch the EXACT web commit in shared.lock.json and
+//                                     fail if any output differs from the lock (reproducibility)
 //   npm run sync -- --from ../freddy-fixit   use a local web checkout instead of fetching
 //
 // What it writes (and nothing else):
@@ -21,6 +23,7 @@ import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { importTimeGlobals } from "./lib/source.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const WEB_REPO = "https://github.com/karanmann137-creator/freddy-fixit";
@@ -40,7 +43,10 @@ export const SHARED = [
 
 const args = process.argv.slice(2);
 const arg = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : undefined; };
-const ref = arg("--ref") ?? "main";
+const locked = args.includes("--locked");
+const lockPath = join(ROOT, "shared.lock.json");
+const lockedLock = locked ? JSON.parse(readFileSync(lockPath, "utf8")) : null;
+const ref = locked ? lockedLock.webSha : (arg("--ref") ?? "main");
 let from = arg("--from");
 let tmp;
 process.on("exit", () => { if (tmp) rmSync(tmp, { recursive: true, force: true }); });
@@ -49,8 +55,12 @@ const git = (...a) => execFileSync("git", a, { encoding: "utf8" }).trim();
 
 if (!from) {
   tmp = mkdtempSync(join(tmpdir(), "ff-web-"));
-  git("clone", "--quiet", "--depth", "1", "--filter=blob:none", "--sparse", "--branch", ref, WEB_REPO, tmp);
+  // init + fetch <ref> works for a branch, a tag AND a commit sha (clone --branch can't take a sha).
+  git("-C", tmp, "init", "--quiet");
+  git("-C", tmp, "remote", "add", "origin", WEB_REPO);
   git("-C", tmp, "sparse-checkout", "set", "--no-cone", "/src/lib/", "/src/components/Ic.tsx", "/src/main.tsx");
+  git("-C", tmp, "fetch", "--quiet", "--depth", "1", "--filter=blob:none", "origin", ref);
+  git("-C", tmp, "checkout", "--quiet", "FETCH_HEAD");
   from = tmp;
 }
 const webSha = git("-C", from, "rev-parse", "HEAD");
@@ -60,17 +70,19 @@ const sha256 = (s) => createHash("sha256").update(s).digest("hex");
 const files = {};
 const out = (rel, body) => {
   const abs = join(ROOT, rel);
+  files[rel] = sha256(body);
+  if (locked) return; // verify only; never touch the tree
   mkdirSync(dirname(abs), { recursive: true });
   writeFileSync(abs, body);
-  files[rel] = sha256(body);
 };
 
 // ---------------------------------------------------------------- 1. shared lib
 for (const name of SHARED) {
   const src = read(`src/lib/${name}.ts`);
-  if (/^\s*(window|document|localStorage|sessionStorage)\./m.test(src.split("\n").filter(l => !/^\s*(\/\/|\*)/.test(l)).join("\n").replace(/function[\s\S]*$/, ""))) {
-    throw new Error(`${name}.ts touches a browser global at top level; it cannot be shared`);
-  }
+  // Browser globals are fine inside a function the app never calls (e.g. notificationRoutes'
+  // URL helpers, banned by check-rules), but not in a top-level statement, which runs at import.
+  const hits = importTimeGlobals(src, `${name}.ts`);
+  if (hits.length) throw new Error(`${name}.ts touches a browser global at import time (it would crash the app on launch): ${hits[0]}`);
   out(`src/lib/${name}.ts`,
     `// SYNCED from freddy-fixit@${short}:src/lib/${name}.ts. DO NOT EDIT HERE.\n` +
     `// Edit the web repo, then run \`npm run sync\`. See PLAN.md §2.\n` + src);
@@ -124,7 +136,9 @@ out("src/kit/tokens.generated.ts",
 
 // ---------------------------------------------------------------- 3. glyphs
 const ic = read("src/components/Ic.tsx");
-const icons = ic.slice(ic.indexOf("const ICONS"), ic.indexOf("\n};", ic.indexOf("const ICONS")));
+const need = (hay, needle, what) => { const i = hay.indexOf(needle); if (i < 0) throw new Error(`${what}: marker "${needle}" not found (did the web file change shape?)`); return i; };
+const iconsAt = need(ic, "const ICONS", "Ic.tsx");
+const icons = ic.slice(iconsAt, need(ic.slice(iconsAt), "\n};", "Ic.tsx ICONS end") + iconsAt);
 const glyphs = {};
 for (const line of icons.split("\n")) {
   const m = line.match(/^\s*("?[a-z0-9-]+"?)\s*:\s*(.+),\s*$/);
@@ -134,8 +148,10 @@ for (const line of icons.split("\n")) {
     [tag, Object.fromEntries([...attrs.matchAll(/([a-zA-Z-]+)="([^"]*)"/g)].map(([, k, v]) => [camel(k), v]))]);
   if (!glyphs[name].length) throw new Error(`glyph ${name}: no shapes parsed`);
 }
-const names = [...ic.slice(ic.indexOf("export type IconName"), ic.indexOf("type IcProps")).matchAll(/"([a-z0-9-]+)"/g)].map(m => m[1]);
+if (Object.keys(glyphs).length === 0) throw new Error("Ic.tsx: parsed 0 glyphs");
+const names = [...ic.slice(need(ic, "export type IconName", "Ic.tsx"), need(ic, "type IcProps", "Ic.tsx")).matchAll(/"([a-z0-9-]+)"/g)].map(m => m[1]);
 const missing = names.filter(n => !glyphs[n]);
+if (names.length === 0) throw new Error("Ic.tsx: parsed 0 IconName entries");
 if (missing.length) throw new Error(`IconName entries without parsed glyphs: ${missing.join(", ")}`);
 out("src/kit/glyphs.generated.ts",
   `// GENERATED from freddy-fixit@${short}:src/components/Ic.tsx (Lucide, ISC). DO NOT EDIT.\n` +
@@ -153,6 +169,12 @@ out("src/lib/imageProfiles.generated.ts",
   `export const PROFILES: Record<CompressProfile, { maxDim: number; quality: number }> = ${prof[1]};\n`);
 
 // ---------------------------------------------------------------- lock
-writeFileSync(join(ROOT, "shared.lock.json"),
-  JSON.stringify({ webRepo: WEB_REPO, webSha, syncedAt: new Date().toISOString().slice(0, 10), files }, null, 2) + "\n");
+if (locked) {
+  const diff = [...new Set([...Object.keys(files), ...Object.keys(lockedLock.files)])].filter((k) => files[k] !== lockedLock.files[k]);
+  if (diff.length) { console.error(`--locked: output differs from shared.lock.json for:\n  ${diff.join("\n  ")}`); process.exit(1); }
+  console.log(`--locked ok: ${Object.keys(files).length} files reproduce exactly from freddy-fixit@${short}`);
+  process.exit(0);
+}
+// No date in the lock: it changes only when the synced content changes.
+writeFileSync(lockPath, JSON.stringify({ webRepo: WEB_REPO, webSha, files }, null, 2) + "\n");
 console.log(`synced ${Object.keys(files).length} files from freddy-fixit@${short}`);

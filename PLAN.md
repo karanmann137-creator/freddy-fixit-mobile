@@ -81,7 +81,7 @@ freddy-fixit-mobile/
 │  ├─ sync-shared.mjs            Pull pinned web files into src/lib + glyphs + tokens
 │  └─ check-shared.mjs           Verify synced files match shared.lock.json byte-for-byte
 ├─ shared.lock.json              { webSha, files: { path: sha256 } }
-├─ app.config.ts  eas.json  tsconfig.json  CLAUDE.md  PLAN.md
+├─ app.json  eas.json  tsconfig.json  CLAUDE.md  PLAN.md
 └─ .github/workflows/ci.yml      typecheck + lint + check-shared on push, and nightly-sync job (§2.4)
 ```
 
@@ -218,7 +218,7 @@ logs in dev when a name is unknown.
 | `StateLine` (`State`) | same | **The palette gate:** orange only when the answer is "you". This is the same rule as web, so port the docblock. |
 | `Pass`, `PassTop`, `IconButton` | same | `forceNavy` default true → wraps children in the `onDark` token set. `IconButton` badge is 44→48dp. |
 | `Hero`, `HeroSub`, `PassMeta`, `PassMetaItem` | same | radial accent glow → `react-native-svg` RadialGradient |
-| `JobSwitcher` (`SwitcherJob`) | same | horizontal `ScrollView` chips (`.ffd-tab` look); a filter, not a tablist |
+| `JobSwitcher` (`SwitcherJob`) | same | horizontal `ScrollView` of job tabs (tablist/tab roles, as on web); a filter over the dashboard, not navigation |
 | `Group`, `Sheet`, `Row` (`RowTone`) | `Group`, `Card`, `Row` | **Renamed `Sheet` → `Card`** because "sheet" means bottom sheet on mobile. `Row` is pressable only when given `onPress`. One `gut` is shared by the icon column and the separator. The icon wrapper renders even with no icon. |
 | `Stepper` (`Step`, `StepState`) | same | vertical timeline, 18px node, 1.5px rail |
 | `AttentionCard`, `TrustLine` | same | `max` prop: **3 client / 4 contractor**. Returns null when empty. Money-gating rows first. |
@@ -536,7 +536,8 @@ before its PR merges.**
 | Date | Done | PR |
 |---|---|---|
 | 2026-11-22 | Phase 1 (1.1–1.5) and the first half of Phase 2: tokens/theme (2.1), Button/ButtonRow/Stack (2.2), Ic (2.3), Pill + StateLine (2.4), Group/Card/Row (2.5), Screen/DashCard (2.8), DeadEnd (2.9), KitLab (2.11). Review-gate configs (§8a). | `phase-1/foundation` |
-| (next) | Rest of Phase 2: Pass/Hero (2.6), Stepper/AttentionCard/JobSwitcher (2.7), Skeleton/Toast/ScreenHeader (2.8), bottom Sheet + ConfirmDialog (2.10). Then **G2**. | |
+| 2026-11-22 | Rest of Phase 2: Pass/PassTop/IconButton/Mark/Hero/PassMeta (2.6), Stepper/AttentionCard/TrustLine/JobSwitcher (2.7), Skeleton/Toast/ScreenHeader (2.8), BottomSheet + askConfirm/ConfirmHost (2.10, plain RN Modal: no gesture library until a screen needs drag). Gates G1 + G2 reviewed by a Sonnet agent. App icon from the owner's logo is in PR #3, **waiting for the owner to merge it**. Until then the tree has Expo's placeholder icons. | `phase-2/kit`, #3 |
+| (next) | **Phase 3: auth** (3.1 root gate first). Needs the owner's Supabase dashboard work (A1) before Google/Apple can be tested on a device. | |
 | (waiting) | **Phase 0** (web prereqs W1–W3). Not done here: web changes ship through the owner's `ship.py` installer from the mounted folder (desktop app), which this cloud session can't reach. Only needed from Phase 4. | |
 
 ### Phase 0: web-repo prerequisites (ship in the web repo)
@@ -550,8 +551,8 @@ before its PR merges.**
 ### Phase 1: foundation
 | Step | Work | Model |
 |---|---|---|
-| 1.1 | Expo scaffold (current stable SDK, TS strict, Expo Router), `app.config.ts`, `eas.json` (development / preview / production), bundle IDs `ca.freddyfixit.app`; **mobile `CLAUDE.md`** with §0 rules | Opus |
-| 1.2 | `scripts/sync-shared.mjs` + `check-shared.mjs` + `shared.lock.json` + CI (typecheck, lint, check-shared, nightly-sync) + the review gates of §8a (`check-rules`, `check-mounts`, `.coderabbit.yaml`, `phase-gate.yml`) | Opus |
+| 1.1 | Expo scaffold (current stable SDK, TS strict, Expo Router), `app.json` (static config is enough; switch to `app.config.ts` only when a value must be computed), `eas.json` (development / preview / production), bundle IDs `ca.freddyfixit.app`; **mobile `CLAUDE.md`** with §0 rules | Opus |
+| 1.2 | `scripts/sync-shared.mjs` + `check-shared.mjs` + `shared.lock.json` + CI (typecheck, lint, check-shared, nightly-sync) + the review gates of §8a (`check-rules` with mounts, `.coderabbit.yaml`) | Opus |
 | 1.3 | Native overrides: `supabase.ts` (LargeSecureStore, PKCE, AppState refresh), `bus.ts`, `platform/storage.ts` | Opus |
 | 1.4 | `theme` + `analytics` no-op overrides. The other six storage-backed overrides (`requestDraft`, `referralCode`, `terms`, `reviewPrompt`, `referralPrompt`, `completionPrompt`, ~800 web lines) are **ported with the step that first calls them** (4.3, 4.4, 4.13), so each is tested against a real caller. `terms` is a legal record. | Sonnet |
 | 1.5 | `imageCompress` override + `platform/upload.ts` (picker → compress → `storage.upload` ArrayBuffer → `scan-image`; HEIC fallback; original-on-failure) | Opus |
@@ -668,7 +669,7 @@ same "different shapes" idea as the web repo's four monitoring layers.
 |---|---|---|---|---|
 | **1. `npm run check`**: typecheck + lint + `check-shared` + `check-rules` + `check-mounts` | GitHub Actions on **every** push and PR | **$0** (public repo, free Actions minutes) | mechanical rule breaks (list below) | anything that needs judgement |
 | **2. CodeRabbit** (free tier) | **manually**: comment `@coderabbitai review` on the PR that closes a phase | **$0.** CodeRabbit reviews public repos free forever, and repos under 10 stars need a manual trigger, which is exactly when we want it | general bugs, React Native pitfalls, missing error handling, leaks, races, security smells | Freddy-specific rules it hasn't been told; a config file fixes most of that |
-| **3. Claude phase-gate review** (`anthropics/claude-code-action@v1`) | only when the owner adds the label **`phase-gate`** to a PR | Pay-per-use API tokens: **Sonnet**, capped at `--max-turns 15` and a 10-min timeout. Roughly the price of one short Sonnet session per phase | judgement against **this plan and §0**: "does this money screen mirror the web gates", "is the 428 handled", "is the established role kept on every branch" | runtime behaviour; only a device test (7.5) proves that |
+| **3. Sonnet review agent** (owner decision 2026-11-22, replaces the paid API workflow) | at every gate, **by the build session before it opens the PR**: a fresh Sonnet agent that has not seen the work reviews the diff | **$0 extra**: runs on the same Claude plan as the build session, no API credits | judgement against **this plan and §0**: "does this money screen mirror the web gates", "is the 428 handled", "is the established role kept on every branch" | runtime behaviour; only a device test (7.5) proves that |
 
 **Why not run CodeRabbit or Claude on every PR?** It costs nothing for CodeRabbit, but
 reviewing every small Sonnet step creates noise the owner learns to ignore. The web repo's
@@ -702,34 +703,33 @@ Layers 2–3 run at the checkpoints.
   - Point its code-guidelines setting at `CLAUDE.md` and `PLAN.md`.
 - The owner's only action is to comment `@coderabbitai review` on the phase PR, then read the summary.
 
-### Layer 3: Claude phase-gate workflow (one-time, step 1.2)
-- `.github/workflows/phase-gate.yml` triggers on `pull_request: types: [labeled]` with `if: github.event.label.name == 'phase-gate'`. It runs `claude-code-action@v1` with model Sonnet, a turn cap and a timeout. The secret is `ANTHROPIC_API_KEY` (or a Claude Code OAuth token).
-- **Public-repo safety:** a label can only be added by someone with write access. Fork PRs get no secrets, so a stranger's PR cannot spend the key. The job runs with `contents: read`, `pull-requests: write` and nothing else, and it only comments. It never pushes or merges.
-- The prompt is fixed in the workflow, not taken from the PR body: *"You are reviewing PR #N, which closes Phase X of PLAN.md. Read PLAN.md §0 and the Phase X rows plus the sections they cite. For each step in Phase X, report PASS / FAIL / NOT-VERIFIABLE with file:line evidence. Check especially: [phase checklist below]. Report only defects, no style notes. End with a one-line verdict the owner can act on: MERGE, FIX FIRST (list), or NEEDS A DEVICE TEST (list)."*
-- **Opus only where a wrong answer costs money or locks people out.** Add `model: opus` to the gates marked **(Opus)** in the table below. Everything else uses Sonnet.
+### Layer 3: Sonnet review agent (owner decision 2026-11-22)
+- The paid `claude-code-action` workflow was tried on PR #3. It worked mechanically, but needs Anthropic API credits, which are billed separately from the Claude plan. **Owner chose Sonnet reviews inside the build session instead**, so `phase-gate.yml` is deleted. Restore it from git history if API credits are added later.
+- **How it runs:** before opening a gate PR, the build session starts a **fresh Sonnet agent** with no access to the build conversation. It gets only the branch, `CLAUDE.md`, PLAN.md §0, §8a and this gate's row. Work never grades itself.
+- **Fixed brief:** *"Review branch X against main. For each step in gate G and each item in its checklist column, report PASS / FAIL / NOT-VERIFIABLE with file:line evidence. Ignore `// SYNCED from` / `// GENERATED from` files. Defects only, no style notes. If you can't check something, say NOT-VERIFIABLE; never guess a pass. End with VERDICT: MERGE | FIX FIRST (list) | NEEDS A DEVICE TEST (list)."*
+- The build session fixes every FAIL, re-runs the agent until the verdict is MERGE, and **pastes the final review into the PR description**. The owner sees the verdict without running anything.
+- Money and auth gates (G3, G4b, G5a, G6, G7) also run their web-side tests (`freddy-money-test`, rolled-back probes) **in addition**. A Sonnet read is not a test.
 
 ### When each gate fires ("major portion" = these checkpoints)
 
-| Gate | After | Layers | Reviewer model | What the phase checklist must confirm |
+| Gate | After | Layers | Extra (beyond the Sonnet review) | What the phase checklist must confirm |
 |---|---|---|---|---|
 | G0 | Phase 0 (web repo) | web's own `ship.py` gates + **CodeRabbit CLI** on the diff (the web ships straight to `main` with no PR, so the app can't run there) + `freddy-payment-change` for W1 | — | predicates moved byte-identical with re-exports; `check_mounts.py` green; `/auth/confirm` proven with a real inbox **before** templates change |
-| G1 | Phase 1 foundation | 1 + 2 + 3 | Sonnet | sync is reproducible from the lock; overrides match web export signatures; session storage is encrypted; no secrets committed |
-| G2 | Phase 2 kit | 1 + 2 + 3 | Sonnet | every value from tokens; 48dp targets; orange only through `StateLine`/primary; reduced motion honoured; `KitLab` excluded from prod |
-| G3 | Phase 3 auth | 1 + 2 + 3 | **Opus** | the §4.2 gate's three outcomes; Google select-account asymmetry; Apple nonce + first-name write; choose-role never demotes; deep links verify `token_hash`; sign-out unregisters push first |
-| G4a | Steps 4.1–4.6 (client requests and signup) | 1 + 2 + 3 | Sonnet | failed read ≠ empty; `requestDraft` and referral at signup; pick screen compares ids, not RLS |
-| G4b | Steps 4.7–4.9 + 4.15 (**client money**) | 1 + 2 + 3, then `freddy-money-test` | **Opus** | `contractBlocked` starts true; 428 reason surfaced; return URL never treated as payment proof; no amount computed on the client; `ContractPanel` on every render branch |
-| G4c | Rest of Phase 4 | 1 + 2 + 3 | Sonnet | chat realtime unsubscribes; blocked messages hidden; account deletion shows the server reason |
-| G5a | Steps 5.2–5.3 (contractor onboarding + Stripe Connect) | 1 + 2 + 3 | **Opus** | documents use the `document` compress profile; Connect return re-reads `stripe_payouts_enabled` and never assumes |
-| G5b | Rest of Phase 5 | 1 + 2 + 3 | Sonnet | attention `else if` order; `photosMissing`/`canWithdraw` imported, not re-derived; commission from `platformRates` |
-| G6 | Phase 6 push (DB + edge + app) | 1 + 2 + 3 + rolled-back probe of `notify_suppressed` + `pg_proc.proacl` read | **Opus** | null-guard first in D2; grants verified live, not from the migration; broadcast set matches §5; push/SMS de-duplication agreed with the SMS session (§5a); no message text or amounts in payloads; `check_legal.py` entry present |
-| G7 | Phase 7 release | 1 + 2 + 3 + device test 7.5 | **Opus** | E2 accepts the enum only (no URL from the body); payout guards untouched (stated in the PR); store privacy labels match Privacy Policy §6.2 |
+| G1 | Phase 1 foundation | 1 + 2 + 3 | — | sync is reproducible from the lock; overrides match web export signatures; session storage is encrypted; no secrets committed |
+| G2 | Phase 2 kit | 1 + 2 + 3 | — | every colour from tokens and every size from `t.*`/`ui.*` (check-rules enforces both; `<Txt size>` is a rem type scale); 48dp targets; orange means "it's on you" (the primary button, `StateLine turn`, the attention card, the current step, unread badges) plus the brand wordmark, same as web, with at most one orange **call to action** (primary button) per screen; reduced motion honoured; `KitLab` excluded from prod |
+| G3 | Phase 3 auth | 1 + 2 + 3 | careful read of every branch | the §4.2 gate's three outcomes; Google select-account asymmetry; Apple nonce + first-name write; choose-role never demotes; deep links verify `token_hash`; sign-out unregisters push first |
+| G4a | Steps 4.1–4.6 (client requests and signup) | 1 + 2 + 3 | — | failed read ≠ empty; `requestDraft` and referral at signup; pick screen compares ids, not RLS |
+| G4b | Steps 4.7–4.9 + 4.15 (**client money**) | 1 + 2 + 3 | `freddy-money-test` | `contractBlocked` starts true; 428 reason surfaced; return URL never treated as payment proof; no amount computed on the client; `ContractPanel` on every render branch |
+| G4c | Rest of Phase 4 | 1 + 2 + 3 | — | chat realtime unsubscribes; blocked messages hidden; account deletion shows the server reason |
+| G5a | Steps 5.2–5.3 (contractor onboarding + Stripe Connect) | 1 + 2 + 3 | careful read of every branch | documents use the `document` compress profile; Connect return re-reads `stripe_payouts_enabled` and never assumes |
+| G5b | Rest of Phase 5 | 1 + 2 + 3 | — | attention `else if` order; `photosMissing`/`canWithdraw` imported, not re-derived; commission from `platformRates` |
+| G6 | Phase 6 push (DB + edge + app) | 1 + 2 + 3 | rolled-back probe of `notify_suppressed` + `pg_proc.proacl` read | null-guard first in D2; grants verified live, not from the migration; broadcast set matches §5; push/SMS de-duplication agreed with the SMS session (§5a); no message text or amounts in payloads; `check_legal.py` entry present |
+| G7 | Phase 7 release | 1 + 2 + 3 | device test 7.5 | E2 accepts the enum only (no URL from the body); payout guards untouched (stated in the PR); store privacy labels match Privacy Policy §6.2 |
 
 **What the owner does at each gate**, in plain steps:
-1. Open the phase PR.
-2. Comment `@coderabbitai review`.
-3. Add the label `phase-gate`.
-4. Wait for both comments.
-5. Merge if the Claude verdict says MERGE and CodeRabbit lists nothing marked critical. Otherwise paste both comments into the next build session as its task.
+1. Open the phase PR. The Sonnet review and its VERDICT are already in the description.
+2. Comment `@coderabbitai review` and wait for its comment.
+3. Merge if the verdict says MERGE and CodeRabbit lists nothing marked critical. Otherwise paste CodeRabbit's comment into the next build session as its task.
 
 **Fixes are a new commit on the same PR, then re-run the gate.** A gate that is waived once
 is a gate that's off.

@@ -1,4 +1,7 @@
-// NATIVE OVERRIDE of web src/lib/theme.ts. Same names and same defaults:
+// NATIVE OVERRIDE of web src/lib/theme.ts: an intentional SUBSET (no synced file
+// imports theme). Web-only names are absent on purpose: applyTheme/applyTextScale
+// (they write to <html>), hasThemePreference, lightPeekEligible/markLightPeekUsed
+// (the light peek lives on web reading pages). Same names and same defaults:
 // dark is the default, light is opt-in, text scale defaults to 1.1 and is
 // never lowered by default.
 //

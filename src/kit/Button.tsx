@@ -13,26 +13,25 @@ import React from "react";
 import { ActivityIndicator, Pressable, View, type ViewStyle } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
-import { ease, rgba, useTheme } from "./theme";
-import { Txt } from "./Text";
+import { ease, rgba, ui, useTheme } from "./theme";
+import { Txt, isTextLike } from "./Text";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
-export function Button({
-  variant = "secondary", full, loading, disabled, onPress, children, accessibilityLabel, testID, style,
-}: {
+type ButtonBase = {
   variant?: ButtonVariant;
   full?: boolean;
   loading?: boolean;
   disabled?: boolean;
   onPress?: () => void;
-  children: React.ReactNode;
-  /** Required when the child isn't plain text (an icon-only button). */
-  accessibilityLabel?: string;
   /** Stable id: the native counterpart of web's anchor `id`. Set it on every render branch. */
   testID?: string;
   style?: ViewStyle;
-}) {
+};
+/** A text button names itself. Anything else (an icon) MUST pass accessibilityLabel: enforced by the type. */
+type ButtonProps = ButtonBase & ({ children: string; accessibilityLabel?: string } | { children: React.ReactElement; accessibilityLabel: string });
+
+export function Button({ variant = "secondary", full, loading, disabled, onPress, children, accessibilityLabel, testID, style }: ButtonProps) {
   const { t, reduceMotion } = useTheme();
   const scale = useSharedValue(1);
   const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }));
@@ -66,13 +65,13 @@ export function Button({
         }}
         style={{
           minHeight: t.hCtl, borderRadius: t.r3, paddingHorizontal: t.s5,
-          backgroundColor: s.bg, borderWidth: s.border ? (variant === "danger" ? 1 : t.hairW) : 0, borderColor: s.border,
+          backgroundColor: s.bg, borderWidth: s.border ? (variant === "danger" ? ui.line : t.hairW) : 0, borderColor: s.border,
           flexDirection: "row", alignItems: "center", justifyContent: "center", gap: t.s2,
           opacity: off && !loading ? 0.5 : 1,
         }}
       >
         {loading && <ActivityIndicator size="small" color={s.fg} />}
-        {typeof children === "string" ? <Txt variant="label" color={s.fg}>{children}</Txt> : children}
+        {isTextLike(children) ? <Txt variant="label" color={s.fg}>{children}</Txt> : children}
       </Pressable>
     </Animated.View>
   );

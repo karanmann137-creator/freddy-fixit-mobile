@@ -22,6 +22,7 @@ jobs:
         with: { node-version: 22, cache: npm }
       - run: npm ci
       - run: npm run check # check:shared + check:rules + typecheck + lint
+      - run: npm run sync -- --locked # synced files reproduce exactly from the locked web commit
 
   # Re-sync from web main into the CI checkout (never committed) and typecheck.
   # Red here = a web change broke the app, even if nobody ran `npm run sync`.

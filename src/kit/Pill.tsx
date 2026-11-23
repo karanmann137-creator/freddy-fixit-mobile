@@ -3,8 +3,8 @@
 // "neutral" is the right answer far more often than it feels like it is.
 import React from "react";
 import { View } from "react-native";
-import { rgba, useTheme } from "./theme";
-import { Txt } from "./Text";
+import { rgba, ui, useTheme } from "./theme";
+import { Txt, isTextLike } from "./Text";
 
 export type PillTone = "accent" | "good" | "warn" | "danger" | "neutral";
 
@@ -18,8 +18,8 @@ export function Pill({ tone = "neutral", children }: { tone?: PillTone; children
     neutral: { bg: rgba(t.fg, 0.07), fg: rgba(t.muted, 0.9) },
   }[tone];
   return (
-    <View style={{ flexDirection: "row", alignItems: "center", gap: t.s1, height: 24, paddingHorizontal: t.s2, borderRadius: 99, backgroundColor: c.bg, alignSelf: "flex-start" }}>
-      {typeof children === "string" ? <Txt variant="label" size={0.72} color={c.fg}>{children}</Txt> : children}
+    <View style={{ flexDirection: "row", alignItems: "center", gap: t.s1, height: ui.pillH, paddingHorizontal: t.s2, borderRadius: ui.pill, backgroundColor: c.bg, alignSelf: "flex-start" }}>
+      {isTextLike(children) ? <Txt variant="label" size={0.72} color={c.fg}>{children}</Txt> : children}
     </View>
   );
 }

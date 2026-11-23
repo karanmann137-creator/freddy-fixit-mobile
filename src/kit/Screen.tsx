@@ -32,7 +32,11 @@ export function Screen({
             keyboardShouldPersistTaps="handled"
             refreshControl={onRefresh ? (
               <RefreshControl refreshing={refreshing} tintColor={t.text}
-                onRefresh={async () => { setRefreshing(true); try { await onRefresh(); } finally { setRefreshing(false); } }} />
+                onRefresh={async () => {
+                  setRefreshing(true);
+                  // The screen's own reads render their failure state; the spinner must just stop.
+                  try { await onRefresh(); } catch { /* shown by the screen */ } finally { setRefreshing(false); }
+                }} />
             ) : undefined}
           >
             {children}

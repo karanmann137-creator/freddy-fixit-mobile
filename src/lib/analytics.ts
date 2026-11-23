@@ -1,4 +1,6 @@
-// NATIVE OVERRIDE of web src/lib/analytics.ts. Owner decision 2026-11-22:
+// NATIVE OVERRIDE of web src/lib/analytics.ts: an intentional SUBSET (no synced file
+// imports analytics). Consent, GA/PostHog ids and campaign capture arrive with
+// PostHog in step 8.1. Owner decision 2026-11-22:
 // no analytics in the app at launch. These are no-ops with the web's names, so
 // feature code can call trackEvent() today and PostHog-with-consent can be
 // dropped in later (PLAN.md step 8.1) without touching any caller.
