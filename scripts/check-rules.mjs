@@ -158,6 +158,7 @@ const MOUNTS = [
   { file: "src/app/_layout.tsx", needle: "SplashScreen.hideAsync", min: 1, why: "without it the app sits on the splash forever, with no error" },
   { file: "src/app/_layout.tsx", needle: "fontError", min: 1, why: "a font that fails to load must not hold the splash" },
   { file: "src/app/_layout.tsx", needle: "<ConfirmHost", min: 1, why: "without it every askConfirm() resolves false: Pay/Delete buttons silently do nothing" },
+  { file: "src/app/_layout.tsx", needle: "<TermsHost", min: 1, why: "without it ensureTermsAccepted() fails open: a bid/request goes through without the person seeing changed terms" },
   { file: "src/app/_layout.tsx", needle: "<ToastHost", min: 1, why: "without it notify() confirmations vanish silently" },
   { file: "src/app/_layout.tsx", needle: '"@/platform/polyfills"', min: 1, why: "without it the password breach check silently never runs (no crypto.subtle)" },
   // Phase 3: every way in goes through the one pipeline, and the pipeline asks for the code.
