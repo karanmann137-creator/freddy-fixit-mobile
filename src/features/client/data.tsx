@@ -16,6 +16,8 @@ export type ClientData = {
   profile: any | null;
   requests: any[];
   pros: any[];
+  /** list_my_pros failed: `pros` is the last good list (or empty), and the Pros tab says it couldn't load. */
+  prosFailed: boolean;
   plans: any[];
 };
 
@@ -35,6 +37,7 @@ const ClientCtx = createContext<Ctx | null>(null);
 export function ClientDataProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const seq = useRef(0);
+  const lastPros = useRef<any[]>([]);
 
   const reload = useCallback(async () => {
     const mine = ++seq.current;
@@ -64,6 +67,8 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
         if (again.error) return set({ kind: "error" });
         profile = again.data;
       }
+      const prosFailed = !!pros.error || !Array.isArray(pros.data);
+      if (!prosFailed) lastPros.current = pros.data as any[];
       set({
         kind: "ok",
         data: {
@@ -71,10 +76,11 @@ export function ClientDataProvider({ children }: { children: React.ReactNode }) 
           email: who.email ?? null,
           profile,
           requests: reqs.data ?? [],
-          // These two only drive WHICH tabs/rows appear. A failed read hides an
-          // optional tab (web does the same: `myPros.data ?? []`); it never asserts
-          // anything about money or a job.
-          pros: Array.isArray(pros.data) ? pros.data : [],
+          // A failed pros read keeps the last good list, so the tab doesn't vanish on
+          // a blip, and flags it so the tab says "couldn't load", never "no pros"
+          // (review G4c #2). Plans only gate an Account row.
+          pros: prosFailed ? lastPros.current : pros.data,
+          prosFailed,
           plans: Array.isArray(plans.data) ? plans.data : [],
         },
       });

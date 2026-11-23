@@ -128,6 +128,17 @@ export function passFor(o: { req: any | null; job: Read<JobView>; bids: Read<num
     if (job.amount) meta.push({ label: "AGREED", value: money(job.amount) });
     return { state: "wait", label: "ON THE WEBSITE", hero: "Manage this job on freddyfixit.ca for now.", sub: proName + " is on it. Payments, the agreement and messages for this job are on the website until the next app update.", meta };
   }
+  // Settled requests and every state the app can't read must not fall through to
+  // "out to pros" (review G4a #3): that promise is only true for a pending request.
+  if (o.req.status === "cancelled") {
+    return { state: "ok", label: "CANCELLED", hero: "This request was cancelled.", sub: "Post a new request whenever you need one.", meta: [] };
+  }
+  if (o.req.status === "completed") {
+    return { state: "ok", label: "ALL DONE", hero: "This one's wrapped up.", sub: "Nothing outstanding. Post another request whenever you need one.", meta: [] };
+  }
+  if (o.req.status !== "pending") {
+    return { state: "wait", label: "ON THE WEBSITE", hero: "Check this request on freddyfixit.ca for now.", sub: "The app can't show this request's stage yet.", meta: [] };
+  }
   const meta: { label: string; value: string; accent?: boolean }[] = [{ label: "POSTED", value: o.req.service_needed ?? "Request" }];
   if (o.bids.kind === "ok" && o.bids.value > 0) meta.push({ label: "ESTIMATES", value: String(o.bids.value) });
   return { state: "wait", label: "OUT TO PROS", hero: "Your request is out to local pros.", sub: "Estimates usually land within a day. We'll email you when the first one arrives.", meta };

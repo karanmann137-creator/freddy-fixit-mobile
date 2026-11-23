@@ -6,11 +6,12 @@
 // isn't changed on web first.
 //
 //   SERVICES, SCHEDULES   pages/ClientOnboarding.tsx:35,74 (NewRequest imports them from there)
-//   HOME_TO_SERVICE       pages/ClientOnboarding.tsx:131 (identical inline copy in NewRequest.tsx:318)
-//   composedPart          NewRequest.tsx:494 / ClientOnboarding.tsx:631 (identical)
+//   HOME_TO_SERVICE       pages/ClientOnboarding.tsx:131 (identical inline copy in components/NewRequest.tsx:317)
+//   composedPart          components/NewRequest.tsx:502 / pages/ClientOnboarding.tsx:642 (identical)
 //   namesFromEmail        pages/ClientOnboarding.tsx:155
-//   SEASON_PRESETS/seasonRange  NewRequest.tsx:164 / ClientOnboarding.tsx:439 (identical)
-//   lastApprox            NewRequest.tsx:367 (prevApprox)
+//   SEASON_PRESETS/seasonRange  components/NewRequest.tsx:164 / pages/ClientOnboarding.tsx:439 (identical)
+//   lastApprox            components/NewRequest.tsx:367 (prevApprox)
+//   serviceFromParam      app-authored: the ?service= ADD-never-replace effect in both forms, as a function
 //   PHOTO_MAX_BYTES/PHOTO_TOO_BIG  components/PhotoPicker.tsx (the 10 MB cap, checked before compression)
 import type { IconName } from "@/kit";
 import { answerSummary, type JobAnswers } from "@/lib/jobQuestions";

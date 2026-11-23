@@ -153,12 +153,19 @@ export function RequestsScreen() {
           <RequestCard req={req} job={job} bids={bids} onRetry={retryActive} />
         )}
 
-        {jv?.job && jobNeedsWeb(jv.job) ? (
-          <Group label="This job">
+        {/* Every "ON THE WEBSITE" pass gets a way there: a live job, or a request
+            stage the app can't read yet (review G4a #3). */}
+        {pass.label === "ON THE WEBSITE" ? (
+          <Group label={jv?.job && jobNeedsWeb(jv.job) ? "This job" : "This request"}>
             <Card>
-              <Row icon="briefcase" tone="neutral" title={(jv.proName || "Your pro") + (jv.job.scheduled_at ? " · " + formatWhen(jv.job.scheduled_at) : "")}
-                sub="Open the job on freddyfixit.ca to sign, pay, message or confirm. Job screens come to the app next." chevron
-                onPress={() => openOnWeb("/client-dashboard")} />
+              {jv?.job && jobNeedsWeb(jv.job) ? (
+                <Row icon="briefcase" tone="neutral" title={(jv.proName || "Your pro") + (jv.job.scheduled_at ? " · " + formatWhen(jv.job.scheduled_at) : "")}
+                  sub="Open the job on freddyfixit.ca to sign, pay, message or confirm. Job screens come to the app next." chevron
+                  onPress={() => openOnWeb("/client-dashboard")} />
+              ) : (
+                <Row icon="briefcase" tone="neutral" title="Open this request on freddyfixit.ca" sub="The website shows every stage." chevron
+                  onPress={() => openOnWeb("/client-dashboard")} />
+              )}
             </Card>
           </Group>
         ) : null}

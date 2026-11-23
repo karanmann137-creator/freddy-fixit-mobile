@@ -203,7 +203,7 @@ const MOUNTS = [
   { file: "src/features/request/GetStartedScreen.tsx", needle: "applyReferralAtSignup(", min: 1, why: "the referral is applied at signup when a session exists (web)" },
   { file: "src/features/request/GetStartedScreen.tsx", needle: "clearDraft(ONBOARDING_DRAFT_KEY)", min: 2, why: "both terminal screens clear the draft: the request exists now (no session and session paths)" },
   { file: "src/features/request/GetStartedScreen.tsx", needle: "identities?.length", min: 1, why: "email-confirm mode answers an existing email with a fake success; without the check it reads as a new signup" },
-  { file: "src/features/auth/destination.ts", needle: "applyReferralAtSignup(", min: 1, why: "after the email link, the pipeline applies the stashed referral for a client signup" },
+  { file: "src/features/auth/destination.ts", needle: "applyReferralAtSignup(", min: 2, why: "the stashed referral is applied on the client funnel AND the no-intent sign-in after a web email link (review G4a #1)" },
 ];
 for (const m of MOUNTS) {
   let text = "";

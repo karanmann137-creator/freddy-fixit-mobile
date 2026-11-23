@@ -618,7 +618,7 @@ export function NextSteps({ email, signedIn }: { email: string; signedIn: boolea
   const { t } = useTheme();
   const steps: { t: string; b: React.ReactNode }[] = signedIn
     ? [
-        { t: "Open your dashboard", b: "Estimates land there as pros send them. That's also where you'll pick who you want and message them." },
+        { t: "Open your dashboard", b: "Estimates land there as pros send them. You'll get an email for each one, and you pick who you want." },
         { t: "Watch your email", b: "We'll email you the moment an estimate arrives, so you don't have to keep checking." },
         { t: "Nothing in your inbox? Check spam", b: <>Our mail comes from <Strong>noreply@freddyfixit.ca</Strong>. If it landed in spam, marking it “not spam” once keeps the rest coming through.</> },
       ]

@@ -35,6 +35,7 @@ export function ProsScreen() {
     );
   }
   const pros: any[] = state.data.pros;
+  const prosFailed: boolean = state.data.prosFailed;
   const isFav = (p: any) => (p.contractor_id in fav ? fav[p.contractor_id] : p.is_favorite === true);
 
   const toggleFav = async (id: string) => {
@@ -66,7 +67,12 @@ export function ProsScreen() {
   return (
     <Screen onRefresh={refresh}>
       <ScreenHeader title="Your pros" back={false} />
-      {pros.length === 0 ? (
+      {prosFailed ? (
+        <Card style={{ marginTop: t.s6 }}>
+          <Row icon="alert-triangle" tone="warn" title="We couldn't load your pros." sub="Tap to try again." onPress={() => void refresh()} />
+        </Card>
+      ) : null}
+      {prosFailed && pros.length === 0 ? null : pros.length === 0 ? (
         <Card style={{ marginTop: t.s6 }}>
           <Row icon="user-check" tone="neutral" title="No pros yet"
             sub="Once you have worked with a contractor, they will show up here so you can rebook them in one tap." />
@@ -87,7 +93,7 @@ export function ProsScreen() {
                 right={
                   <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2 }}>
                     <Button variant="ghost" accessibilityLabel={isFav(pro) ? "Remove favourite" : "Add favourite"} onPress={() => void toggleFav(pro.contractor_id)}>
-                      <Txt size={1.1} color={isFav(pro) ? t.accent500 : rgba(t.muted, 0.6)}>{isFav(pro) ? "♥" : "♡"}</Txt>
+                      <Txt size={1.1} color={isFav(pro) ? t.text : rgba(t.muted, 0.6)}>{isFav(pro) ? "♥" : "♡"}</Txt>
                     </Button>
                     <Button onPress={() => rehire(pro)}>Book again</Button>
                   </View>

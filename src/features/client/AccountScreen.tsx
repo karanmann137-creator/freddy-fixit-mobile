@@ -39,8 +39,8 @@ function Segmented<V extends string | number>({ options, value, onChange, label 
         return (
           <Pressable key={String(o.value)} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => onChange(o.value)}
             style={{ flexGrow: 1, minHeight: t.hCtl, minWidth: t.hCtl * 1.4, alignItems: "center", justifyContent: "center", paddingHorizontal: t.s3, borderRadius: t.r3,
-              borderWidth: t.hairW, borderColor: on ? t.accentLine : t.hair, backgroundColor: on ? t.accentSoft : rgba(t.fg, 0.04) }}>
-            <Txt variant={on ? "bodyMedium" : "body"} size={0.88} color={on ? t.accent500 : rgba(t.muted, 0.95)}>{o.label}</Txt>
+              borderWidth: t.hairW, borderColor: on ? t.text : t.hair, backgroundColor: on ? rgba(t.fg, 0.1) : rgba(t.fg, 0.04) }}>
+            <Txt variant={on ? "bodyMedium" : "body"} size={0.88} color={on ? t.text : rgba(t.muted, 0.95)}>{o.label}</Txt>
           </Pressable>
         );
       })}
@@ -95,8 +95,8 @@ function ProfileCard() {
   return (
     <Card style={{ padding: t.s4 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3 }}>
-        <View style={{ width: t.hCtl, height: t.hCtl, borderRadius: ui.pill, alignItems: "center", justifyContent: "center", backgroundColor: t.accentSoft }}>
-          <Ic name="user" size={18} color={t.accent500} />
+        <View style={{ width: t.hCtl, height: t.hCtl, borderRadius: ui.pill, alignItems: "center", justifyContent: "center", backgroundColor: rgba(t.fg, 0.08) }}>
+          <Ic name="user" size={ui.icon.lg} color={t.text} />
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2, flexWrap: "wrap" }}>
