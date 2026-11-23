@@ -175,6 +175,14 @@ const MOUNTS = [
   { file: "src/features/client/data.tsx", needle: 'set({ kind: "error" })', min: 4, why: "a failed profile/requests read must render couldn't-load, never a confident 'no requests' (web loadError)" },
   { file: "src/features/client/RequestsScreen.tsx", needle: "<DeadEnd", min: 1, why: "the Requests tab's load-error branch: without it a failed read is a blank tab" },
   { file: "src/features/client/rules.ts", needle: 'kind === "error"', min: 1, why: "the pass must say 'couldn't check' on a failed job read, never guess a state" },
+  // Phase 5 steps 5.10/5.11: Reviews, Guide, public pro profile.
+  { file: "src/features/contractor/ReviewsScreen.tsx", needle: "d.reviewsFailed", min: 1, why: "a failed reviews read must say couldn't-load + retry, never 'No reviews yet'" },
+  { file: "src/features/contractor/ReviewsScreen.tsx", needle: "<DeadEnd", min: 1, why: "the Reviews screen's load-error branch: without it a failed read is a blank screen" },
+  { file: "src/features/contractor/GuideScreen.tsx", needle: "CONTRACTOR_GUIDE_MD", min: 1, why: "the guide renders the synced content; without it the screen is silently empty" },
+  { file: "src/features/pro/ProProfileScreen.tsx", needle: "retry={false}", min: 1, why: "a missing pro is a refusal with a way home, not a retry loop" },
+  { file: "src/features/pro/ProProfileScreen.tsx", needle: "onRetry={retry}", min: 1, why: "a failed profile read must offer retry, never read as 'contractor not found'" },
+  { file: "src/features/pro/ProProfileScreen.tsx", needle: 'cur.reviews.kind === "error"', min: 1, why: "failed reviews read must say so, never read as no reviews" },
+  { file: "src/features/pro/ProProfileScreen.tsx", needle: ".maybeSingle()", min: 2, why: "never .single(): the profile and price-grade RPCs may legitimately return nothing" },
   // Phase 4 step 4.17/4.19: Account and Notifications.
   { file: "src/features/client/ReferralCard.tsx", needle: "takeReferralError()", min: 1, why: "the Requests tab's 'referral code didn't apply' row sends people here; without the read-and-clear the explanation never appears" },
   { file: "src/features/client/ReferralCard.tsx", needle: "apply_referral_code", min: 1, why: "the enter-a-friend's-code box: without the call it is a button that does nothing" },
