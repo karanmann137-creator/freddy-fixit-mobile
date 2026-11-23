@@ -12,6 +12,7 @@ import {
 } from "@/kit";
 import { supabase } from "@/lib/supabase";
 import { peekReferralError } from "@/lib/referralCode";
+import { tidyDescription } from "@/lib/jobText";
 import { useClientData } from "./data";
 import {
   attentionRows, formatWhen, jobNeedsWeb, passFor, pickActiveRequest, requestDot,
@@ -173,9 +174,10 @@ function RequestCard({ req, job, bids, onRetry }: { req: any; job: Read<JobView>
       <Card>
         <Row icon="wrench" tone="neutral" title={req.service_needed ?? "Request"} sub={req.preferred_schedule ?? undefined} />
         {req.location ? <Row icon="map-pin" tone="neutral" title={req.location} /> : null}
-        {req.job_description ? (
-          <View style={{ paddingHorizontal: t.s4, paddingVertical: t.s3 }}>
-            <Txt size={0.9} lh={1.55} color={rgba(t.fg, 0.9)}>{req.job_description}</Txt>
+        {/* Display-time tidy only (web JobDescription): spacing/case/full stops, never a reworded word. */}
+        {tidyDescription(req.job_description).length > 0 ? (
+          <View style={{ paddingHorizontal: t.s4, paddingVertical: t.s3, gap: t.s2 }}>
+            {tidyDescription(req.job_description).map((p, i) => <Txt key={i} size={0.9} lh={1.55} color={rgba(t.fg, 0.9)}>{p}</Txt>)}
           </View>
         ) : null}
         {req.status === "pending" && bids.kind === "ok" ? (

@@ -75,6 +75,12 @@ export const ui = {
   inputMin: 16,       // input font floor (web coarse-pointer rule; below 16 iOS zooms on web)
   authMax: 420,       // auth card width (web Login .inner maxWidth)
   meterH: 4,          // password strength bar height
+  textareaH: 140,     // multi-line field (web NewRequest/ClientOnboarding textarea minHeight)
+  progressDot: 26,    // OnboardingProgress step circle
+  progressBar: 3,     // OnboardingProgress connector height
+  photoTile: 76,      // PhotoPicker camera circle
+  photoPreview: 160,  // picked photo preview height
+  tick: 22,           // checkbox square (web 16px, grown to stay legible at 48dp row height)
 } as const;
 
 const SETS = { dark: build(rawTokens.dark), light: build(rawTokens.light), onDark: build(rawTokens.onDark) };
