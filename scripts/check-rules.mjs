@@ -183,6 +183,27 @@ const MOUNTS = [
   { file: "src/features/client/NotificationsScreen.tsx", needle: "noteTarget(", min: 1, why: "a tapped notification must land where the web bell sends it" },
   { file: "src/features/client/NotificationsScreen.tsx", needle: "<DeadEnd", min: 2, why: "a failed notifications read must say couldn't load, never 'you're all caught up'" },
   { file: "src/features/client/NotificationsScreen.tsx", needle: 'read_at: now', min: 2, why: "tapping a notification and 'Mark all read' must write read_at, or the badge never clears" },
+  // Phase 4.3: new request (signed in).
+  { file: "src/features/client/NewRequestScreen.tsx", needle: "clearDraft(NEWREQUEST_DRAFT_KEY)", min: 1, why: "a posted request left in the draft is offered back next time: a duplicate post waiting to happen" },
+  { file: "src/features/client/NewRequestScreen.tsx", needle: "!submitting && !done", min: 1, why: "autosave must stop once the insert starts, or a pending write resurrects the cleared draft" },
+  { file: "src/features/client/NewRequestScreen.tsx", needle: "await reload()", min: 1, why: "without it the Requests tab doesn't show the request just posted (it looks like the post failed)" },
+  { file: "src/features/client/NewRequestScreen.tsx", needle: 'acceptTerms("new-request")', min: 1, why: "the form's terms tick is the legal record of acceptance (web terms.ts)" },
+  { file: "src/features/client/NewRequestScreen.tsx", needle: "<DeadEnd", min: 1, why: "a failed load must be couldn't-load + retry, never a blank form that posts half a request" },
+  { file: "src/features/client/NewRequestScreen.tsx", needle: "formatApproxLocation(", min: 1, why: "location must carry postal code AND area token, or the request ranks out-of-zone for every pro (calgaryAreas.ts)" },
+  { file: "src/platform/upload.ts", needle: "blocked: true", min: 1, why: "a refused photo must be told apart from a failed upload, or it is re-sent on every Submit" },
+  { file: "src/features/auth/flow.ts", needle: "clearDraft(NEWREQUEST_DRAFT_KEY)", min: 1, why: "the signed-in draft (a description of someone's home) must not outlive the session on a shared phone" },
+  // Phase 4.4: client signup funnel. Same pipeline as every other way in.
+  { file: "src/features/auth/screens.tsx", needle: '"/get-started"', min: 1, why: "Welcome's 'Get a repair done' must open the native funnel" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: 'beginSignIn("client")', min: 1, why: "the pending record (client intent) must exist BEFORE signUp can create a session" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: "continueAfterSignIn()", min: 1, why: "the funnel must enter through the pipeline: two-step code and the never-demote role rules" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: "abandonSignIn()", min: 3, why: "a failed or session-less signup must drop the pending record (duplicate, no-session, error)" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: 'stashTermsConsent("signup-client")', min: 1, why: "the terms tick must survive the email-confirmation detour: it is the legal record" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: "redeemStashedTermsConsent()", min: 1, why: "with a session, the tick is recorded at once (web)" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: "stashReferralCode(form.referralCode)", min: 1, why: "a typed referral code is silently lost on the email-confirmation path without it (web)" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: "applyReferralAtSignup(", min: 1, why: "the referral is applied at signup when a session exists (web)" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: "clearDraft(ONBOARDING_DRAFT_KEY)", min: 2, why: "both terminal screens clear the draft: the request exists now (no session and session paths)" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: "identities?.length", min: 1, why: "email-confirm mode answers an existing email with a fake success; without the check it reads as a new signup" },
+  { file: "src/features/auth/destination.ts", needle: "applyReferralAtSignup(", min: 1, why: "after the email link, the pipeline applies the stashed referral for a client signup" },
 ];
 for (const m of MOUNTS) {
   let text = "";

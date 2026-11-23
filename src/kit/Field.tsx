@@ -25,7 +25,8 @@ export function Field({ label, error, hint, right, onFocus, onBlur, ...input }: 
           onFocus={(e) => { setFocused(true); onFocus?.(e); }}
           onBlur={(e) => { setFocused(false); onBlur?.(e); }}
           {...input}
-          style={{ flex: 1, minHeight: t.hCtl, paddingHorizontal: t.s4, color: t.text, fontFamily: fonts.body, fontSize: Math.max(ui.inputMin, fs(1)) }}
+          style={{ flex: 1, minHeight: input.multiline ? ui.textareaH : t.hCtl, paddingHorizontal: t.s4, color: t.text, fontFamily: fonts.body, fontSize: Math.max(ui.inputMin, fs(1)),
+            ...(input.multiline ? { paddingVertical: t.s3, textAlignVertical: "top" as const } : null) }}
         />
         {right}
       </View>
