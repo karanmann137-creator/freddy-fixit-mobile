@@ -108,16 +108,17 @@ export function Tick({ checked, onChange, children, label }: { checked: boolean;
 }
 
 /** "I agree to the User Agreement and Privacy Policy" (web: both forms; signup adds "I am 18 or older"). */
-export function TermsTick({ checked, onChange, adult }: { checked: boolean; onChange: (v: boolean) => void; adult?: boolean }) {
+export function TermsTick({ checked, onChange, adult, after }: { checked: boolean; onChange: (v: boolean) => void; adult?: boolean; after?: string }) {
   const { t } = useTheme();
   const link = (label: string, path: string) => (
     <Txt size={0.82} color={t.accent500} onPress={() => openOnWeb(path)} accessibilityRole="link">{label}</Txt>
   );
   return (
-    <Tick checked={checked} onChange={onChange} label={`${adult ? "I am 18 or older and I" : "I"} agree to Freddy Fix It's User Agreement and Privacy Policy`}>
+    <Tick checked={checked} onChange={onChange} label={`${adult ? "I am 18 or older and I" : "I"} agree to Freddy Fix It's User Agreement and Privacy Policy.${after ? " " + after : ""}`}>
       <Txt size={0.82} lh={1.6} color={rgba(t.muted, 0.75)}>
         {adult ? "I am 18 or older and I agree to Freddy Fix It’s " : "I agree to Freddy Fix It’s "}
         {link("User Agreement", "/user-agreement")}{" and "}{link("Privacy Policy", "/privacy-policy")}.
+        {after ? " " + after : null}
       </Txt>
     </Tick>
   );
@@ -254,14 +255,20 @@ export function PhotoNudge() {
 }
 
 // ---------------------------------------------------------------- services (web ServicePicker + the confirm screen)
-export function ServicePicker({ selected, onToggle, pricing }: { selected: string[]; onToggle: (label: string) => void; pricing: Record<string, ServicePrice> }) {
+/** web ServicePicker. Contractor onboarding passes `items={SPECIALTIES} allowCustom={false}`
+ *  (web: an off-list specialty matches no request, so it would quietly send the pro nothing). */
+export function ServicePicker({ selected, onToggle, pricing = {}, items = SERVICES, allowCustom = true, placeholder }: {
+  selected: string[]; onToggle: (label: string) => void; pricing?: Record<string, ServicePrice>;
+  items?: { iconName: IconName; label: string }[]; allowCustom?: boolean; placeholder?: string;
+}) {
   const { t } = useTheme();
   const [q, setQ] = useState("");
   const query = q.trim().toLowerCase();
-  const filtered = query ? SERVICES.filter(i => i.label.toLowerCase().includes(query)) : SERVICES;
-  const customSelected = selected.filter(l => !SERVICES.some(i => i.label === l));
-  const exactExists = SERVICES.some(i => i.label.toLowerCase() === query) || selected.some(l => l.toLowerCase() === query);
-  const canAddCustom = query.length >= 2 && !exactExists;
+  const filtered = query ? items.filter(i => i.label.toLowerCase().includes(query)) : items;
+  // Selected labels not in the list stay visible as tiles so they stay removable (web, even with allowCustom off).
+  const customSelected = selected.filter(l => !items.some(i => i.label === l));
+  const exactExists = items.some(i => i.label.toLowerCase() === query) || selected.some(l => l.toLowerCase() === query);
+  const canAddCustom = allowCustom && query.length >= 2 && !exactExists;
   const addCustom = () => {
     const label = q.trim();
     if (label.length < 2) return;
@@ -276,7 +283,7 @@ export function ServicePicker({ selected, onToggle, pricing }: { selected: strin
   for (let i = 0; i < tiles.length; i += 2) rows.push(tiles.slice(i, i + 2));
   return (
     <View>
-      <Field label="Search services" value={q} onChangeText={setQ} placeholder="Search a service (e.g. plumbing, moving, junk removal)…"
+      <Field label="Search services" value={q} onChangeText={setQ} placeholder={placeholder ?? "Search a service (e.g. plumbing, moving, junk removal)…"}
         autoCorrect={false} returnKeyType="done" onSubmitEditing={() => { if (canAddCustom) addCustom(); }} />
       {canAddCustom ? (
         <Pressable onPress={addCustom} accessibilityRole="button" style={{ minHeight: t.hCtl, justifyContent: "center", marginTop: t.s3, paddingHorizontal: t.s4,
@@ -307,7 +314,7 @@ export function ServicePicker({ selected, onToggle, pricing }: { selected: strin
           </View>
         ))}
       </View>
-      {filtered.length === 0 && !canAddCustom ? <Note>No match. Type at least 2 letters to add your own service.</Note> : null}
+      {filtered.length === 0 && !canAddCustom ? <Note>{allowCustom ? "No match. Type at least 2 letters to add your own service." : "No match — try a shorter word, or clear the search to see the full list."}</Note> : null}
     </View>
   );
 }
