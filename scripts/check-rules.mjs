@@ -168,6 +168,10 @@ const MOUNTS = [
   { file: "src/features/auth/OAuthButtons.tsx", needle: "beginSignIn(", min: 1, why: "the pending record must exist BEFORE the provider creates a session" },
   { file: "src/features/auth/screens.tsx", needle: "beginSignIn(", min: 2, why: "password sign-in and every email link record the pending sign-in first" },
   { file: "src/features/auth/destination.ts", needle: 'role === "admin"', min: 3, why: "an established admin must win on EVERY funnel branch (web 2026-11-09 demotion)" },
+  { file: "src/app/client/_layout.tsx", needle: "<ClientDataProvider", min: 1, why: "every client tab reads it; without it the tabs throw at runtime on first open" },
+  { file: "src/features/client/data.tsx", needle: 'set({ kind: "error" })', min: 4, why: "a failed profile/requests read must render couldn't-load, never a confident 'no requests' (web loadError)" },
+  { file: "src/features/client/RequestsScreen.tsx", needle: "<DeadEnd", min: 1, why: "the Requests tab's load-error branch: without it a failed read is a blank tab" },
+  { file: "src/features/client/rules.ts", needle: 'kind === "error"', min: 1, why: "the pass must say 'couldn't check' on a failed job read, never guess a state" },
 ];
 for (const m of MOUNTS) {
   let text = "";
