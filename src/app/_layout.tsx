@@ -1,6 +1,6 @@
 // Root layout: fonts + saved prefs load behind the splash, then the theme.
 // Phase 3 (PLAN.md §4.2) adds the auth gate here; ConfirmDialog/Toast are mounted
-// here once (step 2.10) so no screen can forget to mount them.
+// below, once, so no screen can forget to mount them.
 import React, { useEffect, useState } from "react";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -12,7 +12,7 @@ import { DMSans_400Regular } from "@expo-google-fonts/dm-sans/400Regular";
 import { DMSans_500Medium } from "@expo-google-fonts/dm-sans/500Medium";
 import { DMSans_700Bold } from "@expo-google-fonts/dm-sans/700Bold";
 import { Archivo_700Bold } from "@expo-google-fonts/archivo/700Bold";
-import { ThemeProvider, useTheme } from "@/kit";
+import { ConfirmHost, ThemeProvider, ToastHost, useTheme } from "@/kit";
 import { initPrefs } from "@/lib/theme";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -23,6 +23,9 @@ function Shell() {
     <>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }} />
+      {/* Mounted once, here, so no screen can forget them (web: a missing ConfirmDialog hung the button forever). */}
+      <ConfirmHost />
+      <ToastHost />
     </>
   );
 }

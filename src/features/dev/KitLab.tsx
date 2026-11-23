@@ -3,13 +3,17 @@
 // (index.tsx renders it only under __DEV__).
 import React, { useState } from "react";
 import { View } from "react-native";
-import { Button, ButtonRow, Card, DashCard, Group, Ic, Pill, Row, Screen, Stack, StateLine, Txt, useTheme } from "@/kit";
+import {
+  askConfirm, AttentionCard, Button, ButtonRow, Card, DashCard, Group, Hero, HeroSub, Ic, IconButton, JobSwitcher, notify, Pass, PassMeta,
+  PassMetaItem, PassTop, Pill, Row, Screen, SkRow, Stack, StateLine, Stepper, TrustLine, Txt, useTheme,
+} from "@/kit";
 import { glyphs, type IconName } from "@/kit/glyphs.generated";
 import { getTheme, setTheme, setTextScale, TEXT_SCALES, SCALE_LABELS } from "@/lib/theme";
 
 export function KitLab() {
   const { t, scale } = useTheme();
   const [busy, setBusy] = useState(false);
+  const [job, setJob] = useState("a");
   return (
     <Screen onRefresh={() => new Promise((r) => setTimeout(r, 600))}>
       <Txt variant="label" size={2} style={{ marginTop: t.s6 }}>Kit lab</Txt>
@@ -22,6 +26,56 @@ export function KitLab() {
           setTextScale(TEXT_SCALES[(i + 1) % TEXT_SCALES.length]);
         }}>{`Text: ${SCALE_LABELS[scale]}`}</Button>
       </ButtonRow>
+
+      <Group label="Pass">
+        <View style={{ marginHorizontal: -t.s4, borderRadius: t.r4, overflow: "hidden" }}>
+          <Pass>
+            <PassTop><IconButton label="Notifications" badge={3}><Ic name="bell" size={18} /></IconButton></PassTop>
+            <Hero>Your fence repair is booked</Hero>
+            <HeroSub>Mike arrives Tuesday between 10 and 12.</HeroSub>
+            <PassMeta>
+              <PassMetaItem label="JOB" value="FFX-1042" />
+              <PassMetaItem label="DUE NOW" value="$120.00" accent />
+            </PassMeta>
+          </Pass>
+        </View>
+      </Group>
+
+      <Group label="Job switcher">
+        <JobSwitcher activeId={job} onSelect={setJob} onNew={() => notify("New request tapped", "neutral")}
+          jobs={[{ id: "a", label: "FENCE", state: "turn" }, { id: "b", label: "DECK", state: "wait" }, { id: "c", label: "FAUCET", state: "ok" }]} />
+      </Group>
+
+      <AttentionCard>
+        <Row icon="dollar" title="Pay the deposit" sub="Your pro starts once it's held securely" chevron onPress={() => {}} />
+        <Row icon="calendar" title="Pick a visit time" chevron onPress={() => {}} />
+      </AttentionCard>
+      <TrustLine>Your money is held securely until you confirm the job is done.</TrustLine>
+
+      <Group label="Stepper">
+        <Card>
+          <Stepper steps={[
+            { title: "Request posted", sub: "Nov 18", state: "done" },
+            { title: "Pro picked", sub: "Mike R.", state: "done" },
+            { title: "Deposit", sub: "Waiting on you", state: "now" },
+            { title: "Work done", state: "todo" },
+          ]} />
+        </Card>
+      </Group>
+
+      <Group label="Confirm + toast">
+        <Stack>
+          <Button full onPress={async () => {
+            const ok = await askConfirm({ title: "Delete this request?", message: "Pros who quoted will be told it's closed. This can't be undone.", confirmLabel: "Delete" });
+            notify(ok ? "Confirmed" : "Cancelled", ok ? "good" : "neutral");
+          }}>Ask confirm (danger)</Button>
+          <Button full onPress={() => notify("Saved")}>Toast</Button>
+        </Stack>
+      </Group>
+
+      <Group label="Skeleton">
+        <Card><SkRow /><SkRow /></Card>
+      </Group>
 
       <Group label="State line">
         <StateLine state="turn" pulse>Your turn: pay the deposit</StateLine>

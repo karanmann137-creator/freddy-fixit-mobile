@@ -41,8 +41,9 @@ npx eas-cli@latest build --profile development   # a dev build for a phone
 1. `npm run check` on every push (CI). `scripts/check-rules.mjs` holds the mechanical rules and the
    silent-failure **mounts**. Add a mount when you build something whose absence would error nowhere.
 2. CodeRabbit: comment `@coderabbitai review` on a phase PR (free, public repo, manual).
-3. Claude: add label `phase-gate` (plus `opus` for money/auth gates) to a phase PR.
-   One-time setup: install the Claude GitHub App on this repo and add the `ANTHROPIC_API_KEY` Actions secret.
+3. Sonnet review agent: before opening a gate PR, the build session runs a FRESH Sonnet agent (no build
+   context) with the fixed brief in PLAN §8a. Fix every FAIL, re-run until VERDICT: MERGE, and paste the
+   final review into the PR description. (The paid GitHub Action was removed: it needs API credits.)
 
 ## Layout
 ```
