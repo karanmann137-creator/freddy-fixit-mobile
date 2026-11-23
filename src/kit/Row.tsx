@@ -7,7 +7,7 @@
 // Row is pressable only when given onPress.
 import React from "react";
 import { Pressable, View, type ViewStyle } from "react-native";
-import { rgba, useTheme } from "./theme";
+import { rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 import { Ic, type IconName } from "./Ic";
 
@@ -67,10 +67,10 @@ export function Row({ icon, tone = "accent", title, sub, right, amount, chevron,
   const body = (pressed: boolean) => (
     <View style={{ flexDirection: "row", alignItems: "center", minHeight: t.hRow, paddingVertical: t.s3, paddingHorizontal: t.s4,
       backgroundColor: active ? t.accentSoft : pressed ? rgba(t.fg, 0.05) : "transparent" }}>
-      {!_first && <View style={{ position: "absolute", top: 0, left: t.s4 + t.gut, right: 0, height: 1, backgroundColor: t.hair }} />}
+      {!_first && <View style={{ position: "absolute", top: 0, left: t.s4 + t.gut, right: 0, height: ui.line, backgroundColor: t.hair }} />}
       <View style={{ width: t.gut }}>
         {icon ? (
-          <View style={{ width: 26, height: 26, borderRadius: t.r1, alignItems: "center", justifyContent: "center", backgroundColor: iconSkin.bg }}>
+          <View style={{ width: ui.rowIcon, height: ui.rowIcon, borderRadius: t.r1, alignItems: "center", justifyContent: "center", backgroundColor: iconSkin.bg }}>
             <Ic name={icon} size={15} color={iconSkin.fg} />
           </View>
         ) : null}

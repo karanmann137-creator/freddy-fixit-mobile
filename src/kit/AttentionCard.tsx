@@ -3,7 +3,7 @@
 // first: the cap drops from the bottom, never silently from the top.
 import React from "react";
 import { View } from "react-native";
-import { rgba, useTheme } from "./theme";
+import { rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 import { Ic } from "./Ic";
 import { Row } from "./Row";
@@ -13,8 +13,8 @@ export function AttentionCard({ children, title = "NEEDS YOUR ATTENTION", max = 
   const rows = React.Children.toArray(children).filter(Boolean).slice(0, max);
   if (rows.length === 0) return null;
   return (
-    <View style={{ backgroundColor: t.accentSoft, borderWidth: 1, borderColor: t.accentLine, borderRadius: t.r3, overflow: "hidden", marginTop: t.s5 }}>
-      <View accessibilityRole="header" style={{ flexDirection: "row", alignItems: "center", gap: t.s2, paddingVertical: t.s3, paddingHorizontal: t.s4, borderBottomWidth: 1, borderBottomColor: t.accentLine }}>
+    <View style={{ backgroundColor: t.accentSoft, borderWidth: ui.line, borderColor: t.accentLine, borderRadius: t.r3, overflow: "hidden", marginTop: t.s5 }}>
+      <View accessibilityRole="header" style={{ flexDirection: "row", alignItems: "center", gap: t.s2, paddingVertical: t.s3, paddingHorizontal: t.s4, borderBottomWidth: ui.line, borderBottomColor: t.accentLine }}>
         <Ic name="alert-triangle" size={14} color={t.accent500} />
         <Txt variant="label" size={0.78} color={t.accent500} style={{ letterSpacing: 1.4 }}>{title}</Txt>
       </View>
@@ -29,7 +29,7 @@ export function TrustLine({ children }: { children: React.ReactNode }) {
   const { t } = useTheme();
   return (
     <View style={{ flexDirection: "row", gap: t.s3, alignItems: "flex-start", marginTop: t.s5, paddingVertical: t.s3, paddingHorizontal: t.s4,
-      borderRadius: t.r2, backgroundColor: rgba(t.successRgb, 0.08), borderWidth: 1, borderColor: rgba(t.successRgb, 0.2) }}>
+      borderRadius: t.r2, backgroundColor: rgba(t.successRgb, 0.08), borderWidth: ui.line, borderColor: rgba(t.successRgb, 0.2) }}>
       <View style={{ marginTop: 1 }}><Ic name="check-circle" size={18} color={t.success} /></View>
       <Txt size={0.82} color={rgba(t.muted, 0.95)} style={{ flex: 1, lineHeight: 19 }}>{children}</Txt>
     </View>

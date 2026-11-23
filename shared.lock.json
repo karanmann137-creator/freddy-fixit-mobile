@@ -1,7 +1,6 @@
 {
   "webRepo": "https://github.com/karanmann137-creator/freddy-fixit",
   "webSha": "edcd3a3b6b5f6972f3187c8d70056c9e3c0dc258",
-  "syncedAt": "2026-11-22",
   "files": {
     "src/lib/database.types.ts": "1924370d9f82d9a166c3014feeff5a2d4d2ef9c67c8122ecc5276bf71f60ab6b",
     "src/lib/authRead.ts": "87023b7972bbb0aff482c0a82ea426f4fe60a53a48a7f78fc240e6925e388b79",

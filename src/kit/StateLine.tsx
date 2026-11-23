@@ -14,7 +14,7 @@
 import React, { useEffect } from "react";
 import { View } from "react-native";
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming, cancelAnimation } from "react-native-reanimated";
-import { ease, rgba, useTheme } from "./theme";
+import { ease, rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 
 export type State = "turn" | "wait" | "ok" | "review";
@@ -38,9 +38,9 @@ export function StateLine({ state, pulse, children }: { state: State; pulse?: bo
 
   return (
     <View accessibilityRole="text" style={{ flexDirection: "row", alignItems: "center", gap: t.s3, minHeight: t.hCtl, paddingHorizontal: t.s4,
-      borderRadius: 12, backgroundColor: c.bg, marginBottom: t.s4, overflow: "hidden" }}>
-      {c.bar && <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 3, backgroundColor: c.bar }} />}
-      <Animated.View style={[{ width: 10, height: 10, borderRadius: 99 },
+      borderRadius: ui.stateRadius, backgroundColor: c.bg, marginBottom: t.s4, overflow: "hidden" }}>
+      {c.bar && <View style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: ui.stateBar, backgroundColor: c.bar }} />}
+      <Animated.View style={[{ width: ui.stateDot, height: ui.stateDot, borderRadius: 99 },
         c.ring ? { borderWidth: 2, borderColor: rgba(t.muted, 0.8) } : { backgroundColor: c.fg }, dotAnim]} />
       <Txt variant="label" size={1.1} color={c.fg} style={{ flex: 1 }}>{children}</Txt>
     </View>

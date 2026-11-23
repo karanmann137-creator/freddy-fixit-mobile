@@ -10,6 +10,7 @@
 import React from "react";
 import { View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { useTheme, rgba } from "./theme";
 import { Txt } from "./Text";
 import { Button } from "./Button";
@@ -27,6 +28,8 @@ export function DeadEnd(p: Props) {
         {p.retry !== false && (
           <Button variant="primary" onPress={p.onRetry}>{p.retryLabel ?? "Try again"}</Button>
         )}
+        {/* Belt and braces for a cast around the type: a refusal with no alt still gets a way out. */}
+        {p.retry === false && p.alt == null && <Button onPress={() => router.replace("/")}>Go home</Button>}
         {p.alt != null && (typeof p.alt === "string"
           ? <Txt size={0.85} color={rgba(t.muted, 0.7)} style={{ textAlign: "center" }}>{p.alt}</Txt>
           : p.alt)}

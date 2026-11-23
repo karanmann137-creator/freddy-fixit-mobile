@@ -2,7 +2,7 @@
 // "now" is the accent dot: it's the step that's live. "review" is amber.
 import React from "react";
 import { View } from "react-native";
-import { rgba, useTheme } from "./theme";
+import { rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 import { Ic } from "./Ic";
 
@@ -19,16 +19,17 @@ export function Stepper({ steps }: { steps: Step[] }) {
         const last = i === steps.length - 1;
         const dot = {
           done: { backgroundColor: t.success },
-          now: { backgroundColor: t.accent500, borderWidth: 4, borderColor: t.accentSoft, width: 26, height: 26, margin: -4 },
-          review: { backgroundColor: t.warn, borderWidth: 4, borderColor: rgba(t.warnRgb, 0.16), width: 26, height: 26, margin: -4 },
-          todo: { borderWidth: 1.5, borderColor: t.hair },
+          now: { backgroundColor: t.accent500, borderWidth: ui.stepRing, borderColor: t.accentSoft, width: ui.stepDot + 2 * ui.stepRing, height: ui.stepDot + 2 * ui.stepRing, margin: -ui.stepRing },
+          review: { backgroundColor: t.warn, borderWidth: ui.stepRing, borderColor: rgba(t.warnRgb, 0.16), width: ui.stepDot + 2 * ui.stepRing, height: ui.stepDot + 2 * ui.stepRing, margin: -ui.stepRing },
+          todo: { borderWidth: ui.stepRail, borderColor: t.hair },
         }[s.state];
         return (
-          <View key={i} accessible accessibilityLabel={`${typeof s.title === "string" ? s.title : "Step"}, ${LABEL[s.state]}`}
+          <View key={i} accessible={typeof s.title === "string"}
+            accessibilityLabel={typeof s.title === "string" ? [s.title, typeof s.sub === "string" ? s.sub : null, LABEL[s.state]].filter(Boolean).join(", ") : undefined}
             style={{ flexDirection: "row", gap: t.s3, paddingVertical: t.s3, paddingHorizontal: t.s4 }}>
-            {!last && <View style={{ position: "absolute", left: t.s4 + 9 - 0.75, width: 1.5, top: 34, bottom: -10, backgroundColor: t.hair }} />}
-            <View style={{ width: 18, alignItems: "center", marginTop: 2 }}>
-              <View style={[{ width: 18, height: 18, borderRadius: 99, alignItems: "center", justifyContent: "center" }, dot]}>
+            {!last && <View style={{ position: "absolute", left: t.s4 + ui.stepDot / 2 - ui.stepRail / 2, width: ui.stepRail, top: ui.stepRailTop, bottom: -t.s3, backgroundColor: t.hair }} />}
+            <View style={{ width: ui.stepDot, alignItems: "center", marginTop: 2 }}>
+              <View style={[{ width: ui.stepDot, height: ui.stepDot, borderRadius: 99, alignItems: "center", justifyContent: "center" }, dot]}>
                 {s.state === "done" && <Ic name="check" size={11} color={t.surface0e} />}
               </View>
             </View>

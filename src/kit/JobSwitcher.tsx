@@ -3,7 +3,7 @@
 // follows StateLine's rule: orange only for "turn" (it's on you).
 import React from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import { rgba, useTheme } from "./theme";
+import { rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 
 export type SwitcherJob = { id: string; label: string; state?: "turn" | "ok" | "wait" };
@@ -11,7 +11,7 @@ export type SwitcherJob = { id: string; label: string; state?: "turn" | "ok" | "
 export function JobSwitcher({ jobs, activeId, onSelect, onNew, alwaysShow }: {
   jobs: SwitcherJob[]; activeId?: string | null; onSelect: (id: string) => void; onNew?: () => void; alwaysShow?: boolean;
 }) {
-  const { t } = useTheme();
+  const { t, reduceMotion } = useTheme();
   if (!alwaysShow && jobs.length < 2) return null;
   return (
     <View style={{ marginHorizontal: -t.s4, marginBottom: t.s4, borderBottomWidth: t.hairW, borderBottomColor: t.hair }}>
@@ -24,15 +24,15 @@ export function JobSwitcher({ jobs, activeId, onSelect, onNew, alwaysShow }: {
             : { borderColor: rgba(t.fg, 0.3) };
           return (
             <Pressable key={j.id} onPress={() => onSelect(j.id)} accessibilityRole="tab" accessibilityState={{ selected: on }}
-              style={({ pressed }) => ({ height: t.hCtl, flexDirection: "row", alignItems: "center", gap: t.s2,
-                borderBottomWidth: 2, borderBottomColor: on ? t.text : "transparent", transform: [{ scale: pressed ? 0.97 : 1 }] })}>
-              <View style={[{ width: 7, height: 7, borderRadius: 99, borderWidth: 1.5 }, dot]} />
+              style={({ pressed }) => ({ height: t.hCtl, minWidth: t.hCtl, justifyContent: "center", flexDirection: "row", alignItems: "center", gap: t.s2,
+                borderBottomWidth: 2, borderBottomColor: on ? t.text : "transparent", transform: [{ scale: pressed && !reduceMotion ? 0.97 : 1 }] })}>
+              <View style={[{ width: ui.switcherDot, height: ui.switcherDot, borderRadius: 99, borderWidth: ui.stepRail }, dot]} />
               <Txt variant="label" size={0.95} color={on ? t.text : rgba(t.muted, 0.75)}>{j.label}</Txt>
             </Pressable>
           );
         })}
         {onNew && (
-          <Pressable onPress={onNew} accessibilityRole="button" accessibilityLabel="New request" style={{ height: t.hCtl, justifyContent: "center" }}>
+          <Pressable onPress={onNew} accessibilityRole="button" accessibilityLabel="New request" style={{ height: t.hCtl, minWidth: t.hCtl, justifyContent: "center", alignItems: "center" }}>
             <Txt variant="label" size={0.95} color={rgba(t.muted, 0.6)}>+ NEW</Txt>
           </Pressable>
         )}

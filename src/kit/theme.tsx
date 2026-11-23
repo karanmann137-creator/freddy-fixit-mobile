@@ -44,6 +44,27 @@ function build(raw: Raw) {
 }
 export type Tokens = ReturnType<typeof build>;
 
+/** Component sizes copied from web uiStyles.ts, where they are literals too
+ *  (they're shapes, not themeable values). One place, so a kit file never
+ *  invents a number. */
+export const ui = {
+  line: 1,            // 1px borders the web writes as 1px (attn card, danger button)
+  pillH: 24,          // .ffu-pill height
+  rowIcon: 26,        // .ffu-ri icon tile
+  stateRadius: 12,    // .ffu-stateline border-radius
+  stateBar: 3,        // .ffu-stateline::before bar
+  stateDot: 10,       // .ffu-sdot
+  stepDot: 18,        // .ffu-dot
+  stepRing: 4,        // .ffu-dot.ffu-now box-shadow spread
+  stepRail: 1.5,      // .ffu-step::before width
+  stepRailTop: 34,    // .ffu-step::before top
+  badge: 16,          // .ffu-bdg
+  confirmIcon: 40,    // ConfirmDialog icon circle
+  grabW: 36, grabH: 4, // .ffu-grab
+  switcherDot: 7,     // .ffu-jobchip i
+  skRow: 26,          // skeleton avatar = rowIcon
+} as const;
+
 const SETS = { dark: build(rawTokens.dark), light: build(rawTokens.light), onDark: build(rawTokens.onDark) };
 
 /** rgba(t.fg, .07): the native form of web `rgba(var(--ff-fg), .07)`. */

@@ -11,13 +11,16 @@
 //
 // Danger styling is the default, like web: every caller is about to do something
 // that can't be undone. CANCEL is the first, left-hand button.
-import React, { useEffect, useState } from "react";
+//
+// iOS can't show two Modals at once: close any open BottomSheet BEFORE calling
+// askConfirm (device test pending, PLAN §8a G2).
+import React, { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
 import { BottomSheet } from "./BottomSheet";
 import { Button, ButtonRow } from "./Button";
 import { Txt } from "./Text";
 import { Ic } from "./Ic";
-import { rgba, useTheme } from "./theme";
+import { rgba, ui, useTheme } from "./theme";
 
 export type ConfirmOptions = { title: string; message: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean };
 type Pending = ConfirmOptions & { resolve: (ok: boolean) => void };
@@ -38,11 +41,21 @@ export function askConfirm(o: ConfirmOptions): Promise<boolean> {
 export function ConfirmHost() {
   const { t } = useTheme();
   const [p, setP] = useState<Pending | null>(null);
+  const pending = useRef<Pending | null>(null);
   useEffect(() => {
-    show = (next) => setP((cur) => { cur?.resolve(false); return next; }); // a second ask cancels the first
-    return () => { show = null; };
+    const mine = (next: Pending) => {
+      pending.current?.resolve(false); // a second ask cancels the first: never leave a promise open
+      pending.current = next;
+      setP(next);
+    };
+    show = mine;
+    return () => {
+      pending.current?.resolve(false); // unmounting with a dialog open: settle it, don't hang the caller
+      pending.current = null;
+      if (show === mine) show = null; // only clear our own handle
+    };
   }, []);
-  const close = (ok: boolean) => { p?.resolve(ok); setP(null); };
+  const close = (ok: boolean) => { pending.current?.resolve(ok); pending.current = null; setP(null); };
   const danger = p?.danger !== false;
 
   return (
@@ -50,7 +63,7 @@ export function ConfirmHost() {
       {p && (
         <>
           <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3, marginBottom: t.s4 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 99, alignItems: "center", justifyContent: "center",
+            <View style={{ width: ui.confirmIcon, height: ui.confirmIcon, borderRadius: 99, alignItems: "center", justifyContent: "center",
               backgroundColor: danger ? rgba(t.dangerRgb, 0.15) : t.accentSoft, borderWidth: t.hairW,
               borderColor: danger ? rgba(t.dangerRgb, 0.4) : t.accentLine }}>
               <Ic name="alert-triangle" size={18} color={danger ? t.danger : t.accent500} />

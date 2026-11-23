@@ -4,15 +4,19 @@
 // (web rule: a load that never ends is a dead end in disguise).
 import React, { useEffect, useState } from "react";
 import { View, type DimensionValue } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import { rgba, useTheme } from "./theme";
+import Animated, { cancelAnimation, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import { rgba, ui, useTheme } from "./theme";
 import { Txt } from "./Text";
 import { Button } from "./Button";
 
 export function Sk({ w = "100%", h = 12, r, circle }: { w?: DimensionValue; h?: number; r?: number; circle?: boolean }) {
   const { t, reduceMotion } = useTheme();
   const o = useSharedValue(1);
-  useEffect(() => { if (!reduceMotion) o.set(withRepeat(withTiming(0.45, { duration: 900 }), -1, true)); }, [reduceMotion, o]);
+  useEffect(() => {
+    if (reduceMotion) { cancelAnimation(o); o.set(1); }
+    else o.set(withRepeat(withTiming(0.45, { duration: 900 }), -1, true));
+    return () => cancelAnimation(o);
+  }, [reduceMotion, o]);
   const anim = useAnimatedStyle(() => ({ opacity: o.get() }));
   return <Animated.View style={[{ width: circle ? h : w, height: h, borderRadius: circle ? 99 : r ?? 6, backgroundColor: rgba(t.fg, 0.08) }, anim]} />;
 }
@@ -25,7 +29,7 @@ export function SkRow({ avatar = true }: { avatar?: boolean }) {
   const { t } = useTheme();
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3, paddingVertical: t.s3, paddingHorizontal: t.s4 }}>
-      {avatar && <Sk h={26} circle />}
+      {avatar && <Sk h={ui.skRow} circle />}
       <View style={{ flex: 1, gap: 6 }}><Sk w="70%" /><Sk w="40%" h={10} /></View>
     </View>
   );

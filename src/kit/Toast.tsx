@@ -43,8 +43,8 @@ export function ToastHost() {
   return (
     <Animated.View key={cur.id} entering={reduceMotion ? undefined : FadeInUp} exiting={reduceMotion ? undefined : FadeOutUp}
       style={{ position: "absolute", top: insets.top + t.s2, left: t.s4, right: t.s4 }} pointerEvents="box-none">
-      <Pressable onPress={() => setCur(null)} accessibilityRole="alert"
-        style={{ flexDirection: "row", alignItems: "center", gap: t.s3, paddingVertical: t.s3, paddingHorizontal: t.s4,
+      <Pressable onPress={() => setCur(null)} accessibilityRole="button" accessibilityLabel={`${cur.msg}. Dismiss`}
+        style={{ flexDirection: "row", alignItems: "center", gap: t.s3, minHeight: t.hCtl, paddingVertical: t.s3, paddingHorizontal: t.s4,
           borderRadius: t.r3, backgroundColor: t.surface2, borderWidth: t.hairW, borderColor: t.cardBorder,
           shadowColor: rgba(t.bgRgb, 1), shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 6 }}>
         <Ic name={s.icon} size={18} color={s.fg} />

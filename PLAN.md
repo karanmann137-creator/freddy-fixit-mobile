@@ -81,7 +81,7 @@ freddy-fixit-mobile/
 │  ├─ sync-shared.mjs            Pull pinned web files into src/lib + glyphs + tokens
 │  └─ check-shared.mjs           Verify synced files match shared.lock.json byte-for-byte
 ├─ shared.lock.json              { webSha, files: { path: sha256 } }
-├─ app.config.ts  eas.json  tsconfig.json  CLAUDE.md  PLAN.md
+├─ app.json  eas.json  tsconfig.json  CLAUDE.md  PLAN.md
 └─ .github/workflows/ci.yml      typecheck + lint + check-shared on push, and nightly-sync job (§2.4)
 ```
 
@@ -551,7 +551,7 @@ before its PR merges.**
 ### Phase 1: foundation
 | Step | Work | Model |
 |---|---|---|
-| 1.1 | Expo scaffold (current stable SDK, TS strict, Expo Router), `app.config.ts`, `eas.json` (development / preview / production), bundle IDs `ca.freddyfixit.app`; **mobile `CLAUDE.md`** with §0 rules | Opus |
+| 1.1 | Expo scaffold (current stable SDK, TS strict, Expo Router), `app.json` (static config is enough; switch to `app.config.ts` only when a value must be computed), `eas.json` (development / preview / production), bundle IDs `ca.freddyfixit.app`; **mobile `CLAUDE.md`** with §0 rules | Opus |
 | 1.2 | `scripts/sync-shared.mjs` + `check-shared.mjs` + `shared.lock.json` + CI (typecheck, lint, check-shared, nightly-sync) + the review gates of §8a (`check-rules` with mounts, `.coderabbit.yaml`) | Opus |
 | 1.3 | Native overrides: `supabase.ts` (LargeSecureStore, PKCE, AppState refresh), `bus.ts`, `platform/storage.ts` | Opus |
 | 1.4 | `theme` + `analytics` no-op overrides. The other six storage-backed overrides (`requestDraft`, `referralCode`, `terms`, `reviewPrompt`, `referralPrompt`, `completionPrompt`, ~800 web lines) are **ported with the step that first calls them** (4.3, 4.4, 4.13), so each is tested against a real caller. `terms` is a legal record. | Sonnet |
