@@ -476,7 +476,7 @@ export function AccountScreen() {
 
       <Group label="MORE">
         <Card>
-          {nav.reviews ? <Row icon="star" tone="neutral" title="Reviews" sub={String(d.reviews.length)} chevron onPress={() => router.push("/contractor/reviews")} /> : null}
+          {nav.reviews ? <Row icon="star" tone="neutral" title="Reviews" sub={d.reviewsFailed ? "Couldn't load: tap to try again" : String(d.reviews.length)} chevron onPress={() => router.push("/contractor/reviews")} /> : null}
           <Row icon="file" tone="neutral" title="Contractor guide" sub="How Freddy Fix It works for pros" chevron onPress={() => router.push("/contractor/guide")} />
         </Card>
       </Group>

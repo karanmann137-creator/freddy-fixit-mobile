@@ -70,7 +70,7 @@ export function AvatarPicker({ asset, onPick, onRemove, onError, maxBytes, tooBi
           <Image source={{ uri: asset.uri }} accessibilityIgnoresInvertColors resizeMode="cover"
             style={{ width: ui.photoTile, height: ui.photoTile, borderRadius: ui.pill }} />
         ) : (
-          <Ic name="camera" size={ui.icon.xl * 1.8} color={t.accent500} />
+          <Ic name="camera" size={ui.icon.xl * 1.8} color={t.text} />
         )}
         <Txt size={0.88} color={rgba(t.muted, 0.7)}>Pros with a photo get picked more often</Txt>
         <Txt variant="bodyMedium" size={0.88}>{asset ? "Tap to choose a different one" : "Choose a photo"}</Txt>

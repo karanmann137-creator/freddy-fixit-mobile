@@ -50,7 +50,7 @@ export function JobsScreen() {
         {nav.reviews ? (
           <Group label="More">
             <Card>
-              <Row icon="star" tone="neutral" title="Reviews" sub={String(d.reviews.length)} chevron onPress={() => router.push("/contractor/reviews")} />
+              <Row icon="star" tone="neutral" title="Reviews" sub={d.reviewsFailed ? "Couldn't load: tap to try again" : String(d.reviews.length)} chevron onPress={() => router.push("/contractor/reviews")} />
             </Card>
           </Group>
         ) : null}

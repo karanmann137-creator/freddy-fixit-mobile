@@ -14,6 +14,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { Button, Card, DashCard, DeadEnd, Group, Ic, Pill, Row, Screen, ScreenHeader, Sk, SkRow, Txt, notify, rgba, ui, useDelayed, useTheme, type PillTone } from "@/kit";
 import { supabase } from "@/lib/supabase";
+import { readAuthUser } from "@/lib/authRead";
 import { gradeBlurb, gradeLabel, type Grade } from "@/lib/servicePricing";
 
 type Read<T> = { kind: "ok"; value: T } | { kind: "error" };
@@ -35,13 +36,15 @@ async function load(id: string): Promise<Omit<Loaded, "key">> {
   try {
     // Hydrate the session BEFORE the reads (web does): a cold deep link must not
     // fire the RPC before the JWT is attached, or a pending pro looks "not found" to an admin.
-    const { data: { session } } = await supabase.auth.getSession();
+    // readAuthUser() is the one "signed in?" test (review G5 round 2), and it hydrates too.
+    const who = await readAuthUser();
+    const uid = who.kind === "user" ? who.userId : null;
     const [con, pf, revs, pg, me] = await Promise.all([
       supabase.rpc("get_contractor_profile", { p_id: id }).maybeSingle(),
       supabase.from("portfolio_items").select("*").eq("contractor_id", id).order("created_at", { ascending: false }),
       supabase.rpc("get_contractor_reviews", { p_id: id }),
       supabase.rpc("contractor_price_grade", { p_contractor: id }).maybeSingle(),
-      session?.user ? supabase.from("profiles").select("role").eq("id", session.user.id).maybeSingle() : Promise.resolve({ data: null, error: null }),
+      uid ? supabase.from("profiles").select("role").eq("id", uid).maybeSingle() : Promise.resolve({ data: null, error: null }),
     ]);
     return {
       con: con.error ? bad : { kind: "ok", value: con.data ?? null },
@@ -50,7 +53,9 @@ async function load(id: string): Promise<Omit<Loaded, "key">> {
       grade: pg.error ? bad : { kind: "ok", value: ((pg.data as { grade?: string } | null)?.grade ?? null) as Grade | null },
       // The viewer's role only decides whether "Book" is offered; unreadable = unknown.
       role: me.error ? null : (me.data as { role?: string | null } | null)?.role ?? null,
-      signedIn: !!session?.user,
+      // "unknown" still offers Book: the new-request screen has its own couldn't-tell
+      // screen with a retry, so a network blip doesn't silently hide the action.
+      signedIn: who.kind !== "signedOut",
     };
   } catch {
     return { con: bad, portfolio: bad, reviews: bad, grade: bad, role: null, signedIn: false };
