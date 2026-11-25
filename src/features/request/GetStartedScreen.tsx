@@ -92,15 +92,15 @@ export function GetStartedScreen() {
   // A code from an invite link wins over a stale draft value of "" (web stashedRefCode reads the URL first).
   const refParam = typeof params.ref === "string" ? params.ref.trim().toUpperCase() : "";
   return (
-    <SignupForm key={gen} draft={gen ? null : stored.draft} restored={gen === 0 && stored.restored}
+    <SignupForm key={gen} draft={gen ? null : stored.draft} restored={gen === 0 && stored.restored} saveable={stored.saveable}
       onStartOver={() => { stored.startOver(); setGen((g) => g + 1); }}
       initialRef={refParam || stashedRef}
       serviceParam={gen ? null : (typeof params.service === "string" ? params.service : null)} />
   );
 }
 
-function SignupForm({ draft, restored, onStartOver, initialRef, serviceParam }: {
-  draft: Record<string, unknown> | null; restored: boolean; onStartOver: () => void; initialRef: string; serviceParam: string | null;
+function SignupForm({ draft, restored, saveable, onStartOver, initialRef, serviceParam }: {
+  draft: Record<string, unknown> | null; restored: boolean; saveable: boolean; onStartOver: () => void; initialRef: string; serviceParam: string | null;
 }) {
   const { t } = useTheme();
   const { status: platform, ready: platformReady } = usePlatformStatus();
@@ -146,7 +146,7 @@ function SignupForm({ draft, restored, onStartOver, initialRef, serviceParam }: 
     step, confirmShown, ...core.snapshot(),
     email: form.email, phone: form.phone, businessName: form.businessName, businessType: form.businessType,
     locations: form.locations, billingPreference: form.billingPreference, referralCode: form.referralCode, clientType,
-  }, !loading && !success && !verifyEmail);
+  }, saveable && !loading && !success && !verifyEmail);
 
   useEffect(() => { trackEvent("onboarding_step_view", { flow: "client", step, step_name: STEP_NAMES[step - 1] || String(step) }); }, [step]);
 
@@ -243,9 +243,12 @@ function SignupForm({ draft, restored, onStartOver, initialRef, serviceParam }: 
       // An accepted split: the trigger writes one row per part, atomically, and falls
       // back to the single combined row (the keys above) on any problem.
       if (splitParts && splitParts.length >= 2) {
+        // The answers/tags ride on the part whose service they were asked about, else part 1
+        // (web NewRequest `extrasOn`; the same rule as the signed-in form).
+        const extrasOn = Math.max(0, splitParts.findIndex((p) => p.service === core.primaryService));
         metadata.split_jobs = splitParts.map((p, i) => {
           const floor = floorFor(p.service, core.pricing);
-          return { service_needed: p.service, job_description: core.composed(p.description, i === 0), budget_min: floor == null ? "" : String(floor) };
+          return { service_needed: p.service, job_description: core.composed(p.description, i === extrasOn), budget_min: floor == null ? "" : String(floor) };
         });
       }
       // Pre-flight duplicate check (the DB triggers are the hard backstop). A failed check never blocks (web).

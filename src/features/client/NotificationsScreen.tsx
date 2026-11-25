@@ -130,8 +130,9 @@ export function NotificationsScreen() {
     if (!ids.length) return;
     const now = new Date().toISOString();
     setLocalRead((p) => ({ ...p, ...Object.fromEntries(ids.map((id) => [id, now])) }));
-    const { error } = await supabase.from("notifications").update({ read_at: now }).in("id", ids);
-    if (error) {
+    let failed = false;
+    try { failed = !!(await supabase.from("notifications").update({ read_at: now }).in("id", ids)).error; } catch { failed = true; }
+    if (failed) {
       setLocalRead((p) => { const q = { ...p }; for (const id of ids) delete q[id]; return q; });
       notify("We couldn't mark them as read. Try again.", "danger");
     }
@@ -142,7 +143,9 @@ export function NotificationsScreen() {
       const now = new Date().toISOString();
       setLocalRead((p) => ({ ...p, [n.id]: now }));
       // Fire and go: a failed mark-read must never block the tap (web does the same).
-      void supabase.from("notifications").update({ read_at: now }).eq("id", n.id).then(() => undefined, () => undefined);
+      // A failed one drops its local marker, so the row reads unread again and a tap retries.
+      const unmark = () => setLocalRead((p) => { const q = { ...p }; delete q[n.id]; return q; });
+      void supabase.from("notifications").update({ read_at: now }).eq("id", n.id).then(({ error }) => { if (error) unmark(); }, unmark);
     }
     const d = destinationFor(n);
     if ("app" in d) router.navigate(d.app);

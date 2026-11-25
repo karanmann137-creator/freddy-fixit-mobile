@@ -21,7 +21,8 @@ export function WaitlistCard({ initialService = "", initialDescription = "", ini
   const [description, setDescription] = useState(initialDescription);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState(false);
+  // The email the insert actually sent: the fields stay editable while it is in flight.
+  const [done, setDone] = useState<string | null>(null);
 
   const submit = async () => {
     if (busy) return;
@@ -31,17 +32,18 @@ export function WaitlistCard({ initialService = "", initialDescription = "", ini
     const pc = validatePhone(phone, true);
     if (!pc.ok) { setErr(pc.error || "Please check that phone number."); return; }
     setBusy(true);
+    const sent = email.trim().toLowerCase();
     try {
       const { error } = await supabase.from("waitlist").insert({
         name: name.trim() || null,
-        email: email.trim().toLowerCase(),
+        email: sent,
         phone: phone.trim() || null,
         service: service.trim() || null,
         description: description.trim() || null,
         source,
       });
       if (error) throw error;
-      setDone(true);
+      setDone(sent);
     } catch (e) {
       setErr((e as { message?: string })?.message || "Something went wrong. Please try again.");
     } finally {
@@ -53,8 +55,8 @@ export function WaitlistCard({ initialService = "", initialDescription = "", ini
     <View style={{ padding: t.s5, borderRadius: t.r3, backgroundColor: rgba(t.fg, 0.04), borderWidth: ui.line, borderColor: rgba(t.accentRgb, 0.3) }}>
       <Txt variant="label" size={1.6} ls={0.05} accessibilityRole="header">{status.notice.headline}</Txt>
       <Txt size={0.92} lh={1.6} color={rgba(t.muted, 0.8)} style={{ marginTop: t.s2 }}>{status.notice.body}</Txt>
-      {done ? (
-        <FormNote tone="good">{`You're on the list. We'll email you at ${email.trim().toLowerCase()} the moment we start taking job requests again. Nothing else will be sent to you in the meantime.`}</FormNote>
+      {done !== null ? (
+        <FormNote tone="good">{`You're on the list. We'll email you at ${done} the moment we start taking job requests again. Nothing else will be sent to you in the meantime.`}</FormNote>
       ) : (
         <>
           <Field label="Your name (optional)" value={name} onChangeText={setName} autoComplete="name" textContentType="name" placeholder="Alex" />

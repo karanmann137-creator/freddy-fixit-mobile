@@ -102,6 +102,9 @@ export function RequestsScreen() {
   const rows = attentionRows({ req, job, bids, refError });
   const pass = passFor({ req, job, bids, rows });
   const jv = job.kind === "ok" ? job.value : null;
+  // The job handoff shows for every live job, whatever the pass says: an attention row
+  // (say a referral notice) turns the pass to YOUR TURN but can't manage the job (CodeRabbit #6).
+  const jobOnWeb = !!jv?.job && jobNeedsWeb(jv.job);
 
   const act = (r: AttnRow) => {
     // Estimates (4.5) and adding a photo to a posted request are next in Phase 4;
@@ -155,10 +158,10 @@ export function RequestsScreen() {
 
         {/* Every "ON THE WEBSITE" pass gets a way there: a live job, or a request
             stage the app can't read yet (review G4a #3). */}
-        {pass.label === "ON THE WEBSITE" ? (
-          <Group label={jv?.job && jobNeedsWeb(jv.job) ? "This job" : "This request"}>
+        {jobOnWeb || pass.label === "ON THE WEBSITE" ? (
+          <Group label={jobOnWeb ? "This job" : "This request"}>
             <Card>
-              {jv?.job && jobNeedsWeb(jv.job) ? (
+              {jv?.job && jobOnWeb ? (
                 <Row icon="briefcase" tone="neutral" title={(jv.proName || "Your pro") + (jv.job.scheduled_at ? " · " + formatWhen(jv.job.scheduled_at) : "")}
                   sub="Open the job on freddyfixit.ca to sign, pay, message or confirm. Job screens come to the app next." chevron
                   onPress={() => openOnWeb("/client-dashboard")} />

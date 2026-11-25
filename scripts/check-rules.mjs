@@ -196,7 +196,11 @@ const MOUNTS = [
   { file: "src/features/contractor/OpenJobScreen.tsx", needle: "await reload()", min: 1, why: "after a bid the card must re-read my_amount, or the pro sees the empty form again and bids twice" },
   { file: "src/features/contractor/bid.ts", needle: "if (!wt && total == null && r.my_amount != null)", min: 1, why: "web's fallback to the saved amount: without it editing only the message is refused" },
   { file: "src/app/client/_layout.tsx", needle: "<ClientDataProvider", min: 1, why: "every client tab reads it; without it the tabs throw at runtime on first open" },
-  { file: "src/features/client/data.tsx", needle: 'set({ kind: "error" })', min: 4, why: "a failed profile/requests read must render couldn't-load, never a confident 'no requests' (web loadError)" },
+  { file: "src/features/client/data.tsx", needle: "return fail()", min: 4, why: "a failed profile/requests read must render couldn't-load, never a confident 'no requests' (web loadError)" },
+  { file: "src/features/client/AccountScreen.tsx", needle: 'state.kind === "error" ? state.last', min: 1, why: "a failed refresh keeps the Account tab mounted: unmounting it loses one-time recovery codes TwoStepCard is showing (CodeRabbit #6)" },
+  { file: "src/features/client/TwoStepCard.tsx", needle: "!codesPending &&", min: 2, why: "issued recovery codes render whatever the status refresh says; they can never be shown again (CodeRabbit #6)" },
+  { file: "src/features/client/NewRequestScreen.tsx", needle: "saveable && ", min: 1, why: "a draft storage READ failure must not let autosave overwrite the draft it never saw" },
+  { file: "src/features/request/GetStartedScreen.tsx", needle: "saveable && ", min: 1, why: "a draft storage READ failure must not let autosave overwrite the draft it never saw" },
   { file: "src/features/client/RequestsScreen.tsx", needle: "<DeadEnd", min: 1, why: "the Requests tab's load-error branch: without it a failed read is a blank tab" },
   { file: "src/features/client/rules.ts", needle: 'kind === "error"', min: 1, why: "the pass must say 'couldn't check' on a failed job read, never guess a state" },
   // Phase 5 steps 5.10/5.11: Reviews, Guide, public pro profile.

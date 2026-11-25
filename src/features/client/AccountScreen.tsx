@@ -48,10 +48,17 @@ function Segmented<V extends string | number>({ options, value, onChange, label 
   );
 }
 
+/** The data the Account tab shows: the fresh load, or after a failed REFRESH the last good one.
+ *  A failed refresh must not unmount this screen: TwoStepCard may be holding one-time
+ *  recovery codes that can never be shown again (CodeRabbit #6). */
+function accountData(state: ReturnType<typeof useClientData>["state"]) {
+  return state.kind === "ok" ? state.data : state.kind === "error" ? state.last : null;
+}
+
 function ProfileCard() {
   const { t } = useTheme();
   const { state, reload } = useClientData();
-  const data = state.kind === "ok" ? state.data : null;
+  const data = accountData(state);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState({ firstName: "", lastName: "", phone: "" });
   const [saving, setSaving] = useState(false);
@@ -134,10 +141,11 @@ export function AccountScreen() {
   const { state, reload } = useClientData();
   const showSkeleton = useDelayed();
 
-  if (state.kind === "error") {
+  const data = accountData(state);
+  if (state.kind === "error" && !data) {
     return <DeadEnd msg="We couldn't load your account. Check your connection, then try again." onRetry={() => void reload()} />;
   }
-  if (state.kind === "loading") {
+  if (!data) {
     return (
       <Screen>
         <ScreenHeader title="Account" back={false} />
@@ -146,9 +154,10 @@ export function AccountScreen() {
     );
   }
 
-  const { pros, plans, requests } = state.data;
+  const { pros, plans, plansFailed, requests } = data;
   // Recurring and History are not tabs on a phone: they are rows here, shown by the same counts as web's nav.
-  const nav = clientNav({ pros: pros.length, plans: plans.length, past: requests.filter(isPastRequest).length });
+  // A failed plans read keeps the Recurring row: "no plans" would be a guess.
+  const nav = clientNav({ pros: pros.length, plans: plansFailed ? Math.max(1, plans.length) : plans.length, past: requests.filter(isPastRequest).length });
 
   const mail = () => {
     const subject = encodeURIComponent("Bug report: Freddy Fix It");
@@ -158,6 +167,12 @@ export function AccountScreen() {
   return (
     <Screen onRefresh={reload}>
       <ScreenHeader title="Account" back={false} />
+      {state.kind === "error" ? (
+        <Card style={{ padding: t.s4, marginBottom: t.s4 }}>
+          <Txt size={0.88} lh={1.5} color={rgba(t.muted, 0.95)}>{"We couldn't refresh your account just now. What you see is from the last time it loaded."}</Txt>
+          <View style={{ marginTop: t.s3 }}><Button onPress={() => void reload()}>Try again</Button></View>
+        </Card>
+      ) : null}
       <ProfileCard />
 
       {nav.history || nav.recurring ? (
