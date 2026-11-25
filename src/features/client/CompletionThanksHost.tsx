@@ -33,8 +33,14 @@ export function CompletionThanksHost() {
     if (code) void referralPromptOptOut();
     close();
   };
-  const goReview = () => {
-    WebBrowser.openBrowserAsync(GOOGLE_REVIEW_URL).catch(() => notify("Couldn't open the link. Check your connection and try again.", "danger"));
+  const goReview = async () => {
+    try {
+      await WebBrowser.openBrowserAsync(GOOGLE_REVIEW_URL);
+    } catch {
+      // The action stays on screen so "try again" has something to try (CodeRabbit #8).
+      notify("Couldn't open the link. Check your connection and try again.", "danger");
+      return;
+    }
     // Not closed unless it was the only ask: the referral half stays on screen.
     setReview(false);
     if (!code) close();

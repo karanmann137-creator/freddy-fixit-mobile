@@ -12,11 +12,21 @@ import { markReferralAsked, referralAskAllowed } from "@/lib/referralPrompt";
 export const COMPLETION_THANKS_EVENT = "ff:completion-thanks";
 export type CompletionThanks = { review: boolean; code: string | null };
 
-export async function requestCompletionThanks(opts: {
+// One call's read, stamp and emit finish before the next call reads, so two
+// completions in quick succession can't both see "not asked yet" (CodeRabbit #8).
+let queue: Promise<void> = Promise.resolve();
+
+export function requestCompletionThanks(opts: {
   jobId?: string;
   code?: string | null;
   codeStatus?: string | null;
 }): Promise<void> {
+  const run = queue.then(() => askOnce(opts));
+  queue = run;
+  return run;
+}
+
+async function askOnce(opts: { jobId?: string; code?: string | null; codeStatus?: string | null }): Promise<void> {
   try {
     // A code a friend already holds (`in_use`) or has spent (`retired`) is never offered.
     const wantReview = await reviewAskAllowed("job_done", opts.jobId);

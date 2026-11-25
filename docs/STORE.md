@@ -106,6 +106,7 @@ Top-level answers:
 | Files and docs | **Not yet** | | | Becomes **Yes** when PDF documents ship (`expo-document-picker`). |
 | Calendar / Contacts | No | | | |
 | App activity (page views, interactions, search history, installed apps) | **No** | | | No analytics. |
+| App activity: Other user-generated content | **Yes** | No | Required for requests and reviews | App functionality: job descriptions, request answers, review comments and ratings. |
 | Web browsing | No | | | |
 | App info and performance (crash logs, diagnostics) | **No** | | | None collected by us. |
 | Device or other IDs | **No today, Yes after Phase 6** | No | | Push token. Update with 6.3. |

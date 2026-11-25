@@ -24,9 +24,12 @@ function MonthButton({ label, onPress, children }: { label: string; onPress: () 
 
 export function CalendarView({ jobs }: { jobs: any[] }) {
   const { t } = useTheme();
-  const [today] = useState(() => calgaryToday());
-  const [cur, setCur] = useState<YM>(today.ym);
-  const [selected, setSelected] = useState(today.key);
+  // Read Calgary's date on every render, so a screen left open past midnight
+  // marks and jumps to the real today (CodeRabbit #8).
+  const today = calgaryToday();
+  const [initial] = useState(() => calgaryToday());
+  const [cur, setCur] = useState<YM>(initial.ym);
+  const [selected, setSelected] = useState(initial.key);
 
   const byDay = bucketByDay(jobs);
   const unscheduled = unscheduledCount(jobs);
@@ -76,6 +79,9 @@ export function CalendarView({ jobs }: { jobs: any[] }) {
               const isToday = k === today.key, isSel = k === selected;
               return (
                 <Pressable key={k} onPress={() => setSelected(k)} accessibilityRole="button" accessibilityState={{ selected: isSel }}
+                  // Seven columns can be under 48dp wide on a 360dp phone: hitSlop keeps
+                  // the touch area at 48dp without changing the grid (CodeRabbit #8).
+                  hitSlop={{ left: t.s1, right: t.s1 }}
                   accessibilityLabel={dayLabel(k) + (isToday ? ", today" : "") + (dj.length ? ", " + dj.length + (dj.length === 1 ? " job" : " jobs") : ", nothing booked")}
                   style={{ flex: 1, minWidth: 0, minHeight: t.hCtl, alignItems: "center", justifyContent: "center", gap: t.s1, paddingVertical: t.s1, borderRadius: t.r2,
                     backgroundColor: isSel ? rgba(t.fg, 0.1) : rgba(t.fg, 0.035),
