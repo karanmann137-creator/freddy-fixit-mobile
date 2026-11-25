@@ -256,6 +256,10 @@ const MOUNTS = [
   { file: "src/features/contractor/OnboardingScreen.tsx", needle: 'from("contractors").upsert(', min: 1, why: "the signed-in branch's answers (and doc_urls) land only through this write" },
   { file: "src/features/contractor/OnboardingScreen.tsx", needle: "kvRemove(CONTRACTOR_DRAFT_KEY)", min: 2, why: "both terminal screens clear the draft, or a finished signup is offered back as unfinished" },
   { file: "src/features/contractor/OnboardingScreen.tsx", needle: "!busy.current", min: 1, why: "the screen's own signUp must not re-run the auth check under a form that is mid-save" },
+  // Phase 5.8: Jobs calendar.
+  { file: "src/features/contractor/calendarRules.ts", needle: "timeZone: TZ", min: 1, why: "the calendar buckets days on the Calgary clock; without the zone a 9pm job lands on the wrong day by device or UTC (web CLAUDE.md timezone rule)" },
+  { file: "src/features/contractor/JobsScreen.tsx", needle: "nav.calendar", min: 2, why: "the List/Calendar toggle must follow web's visibleNav (a job with scheduled_at); always-on shows an empty month" },
+  { file: "src/features/contractor/JobsScreen.tsx", needle: "<CalendarView", min: 1, why: "without it the Calendar toggle selects nothing and no error shows" },
   { file: "src/lib/imageCompress.ts", needle: 't === "application/pdf"', min: 1, why: "PDFs must pass through compressImage untouched (web: the document profile never re-encodes a PDF)" },
 ];
 for (const m of MOUNTS) {
