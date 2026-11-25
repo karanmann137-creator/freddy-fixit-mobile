@@ -13,7 +13,7 @@
 //     Until they move to src/lib the row below opens the website, which can answer.
 //   - Payout setup (Stripe Connect, step 5.3) needs web change E2: a website handoff.
 //   - Delete account: website handoff (needs a web edge change, step 4.18).
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Image, Linking, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
@@ -81,7 +81,14 @@ function ProfileCard({ profile, contractor, email, userId, reload }: { profile: 
       if (pErr) throw pErr;
       if (!rows || rows.length === 0) throw new Error("Could not save your changes. Please try again.");
       // Web also writes work_type here; the trade picker is a web prerequisite (see header), so it is left untouched.
-      await updateContractor(userId, { company_name: form.companyName.trim() || null });
+      // Two writes, as on web. If only the first lands, say exactly what saved and keep
+      // the company edit on screen to retry (CodeRabbit #7), never a generic failure.
+      try { await updateContractor(userId, { company_name: form.companyName.trim() || null }); }
+      catch {
+        await reload();
+        setError("Your name and phone were saved, but your company name wasn't. Tap Save to try the company name again.");
+        return;
+      }
       // Confirmation email: never let an email hiccup block the save.
       let sent = false;
       try { const { error: mailErr } = await supabase.functions.invoke("profile-updated", { body: { changed: ["name", "phone", "company"] } }); sent = !mailErr; } catch { /* the save already succeeded */ }
@@ -352,13 +359,24 @@ function AvailabilityCard({ contractor, userId }: { contractor: any; userId: str
   const [avail, setAvail] = useState(() => readAvailability(contractor?.availability));
   const [custom, setCustom] = useState(false);
 
-  const save = async (next: { days: string[]; start: string; end: string }) => {
+  // Saves commit in press order (each waits for the one before), and a failed save
+  // only rolls the screen back when no newer press exists, to the last value the
+  // server actually stored (CodeRabbit #7). The stored value always equals the
+  // last successful press.
+  const chain = useRef<Promise<void>>(Promise.resolve());
+  const latest = useRef(0);
+  const lastStored = useRef(avail);
+  const save = (next: { days: string[]; start: string; end: string }) => {
     // Reject an invalid window (end at/before start) before writing anything (web).
     if (next.start && next.end && next.end <= next.start) { notify("Your end time needs to be after your start time.", "danger"); return; }
-    const prev = avail;
+    const mine = ++latest.current;
     setAvail(next);
-    try { await updateContractor(userId, { availability: next }); }
-    catch { setAvail(prev); notify("Couldn't save your availability. Please try again.", "danger"); }
+    chain.current = chain.current.then(async () => {
+      try { await updateContractor(userId, { availability: next }); lastStored.current = next; }
+      catch {
+        if (mine === latest.current) { setAvail(lastStored.current); notify("Couldn't save your availability. Please try again.", "danger"); }
+      }
+    });
   };
 
   const eq = (a: string[]) => a.length === avail.days.length && a.every((d) => avail.days.includes(d));

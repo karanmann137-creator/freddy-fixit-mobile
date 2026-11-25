@@ -160,6 +160,7 @@ const MOUNTS = [
   { file: "src/app/_layout.tsx", needle: "<ConfirmHost", min: 1, why: "without it every askConfirm() resolves false: Pay/Delete buttons silently do nothing" },
   { file: "src/features/legal/TermsHost.tsx", needle: "onClose={keepOpen}", min: 1, why: "the terms sheet must not close on a scrim tap or back press: that silently drops the bid being placed (web rule)" },
   { file: "src/features/contractor/OnboardingScreen.tsx", needle: "if (!keepLock) onUnlock()", min: 1, why: "a failed submit must release the lock, or a later Google/Apple sign-in is never re-checked" },
+  { file: "src/features/auth/flow.ts", needle: "kvRemove(CONTRACTOR_DRAFT_KEY)", min: 1, why: "sign-out must clear the contractor onboarding draft (PII) so the next person on the phone never sees it" },
   { file: "src/app/_layout.tsx", needle: "<TermsHost", min: 1, why: "without it ensureTermsAccepted() fails open: a bid/request goes through without the person seeing changed terms" },
   { file: "src/app/_layout.tsx", needle: "<ToastHost", min: 1, why: "without it notify() confirmations vanish silently" },
   { file: "src/app/_layout.tsx", needle: '"@/platform/polyfills"', min: 1, why: "without it the password breach check silently never runs (no crypto.subtle)" },

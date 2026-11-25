@@ -94,7 +94,8 @@ export function EarningsScreen() {
   // Web netPayout: the stored contractor_payout always wins; else an estimate from the rate; else unknown.
   const netPayout = (job: any): number | null => {
     if (job?.contractor_payout != null) return Number(job.contractor_payout);
-    if (rate == null) return null;
+    // No amount means no estimate: unknown, never a confident $0.00 (CodeRabbit #7).
+    if (rate == null || job?.amount == null) return null;
     return Math.round(Number(job?.amount ?? 0) * (1 - rate) * 100) / 100;
   };
 
