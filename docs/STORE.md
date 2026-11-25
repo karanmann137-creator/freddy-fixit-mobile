@@ -126,7 +126,7 @@ Paste and fill:
 >
 > **Payments (Guideline 3.1.3(e), goods and services consumed outside the app).** Payments are for physical services performed in the real world by independent contractors, never for digital content or app features, so In-App Purchase does not apply. Payment is by Stripe Checkout (cards, Apple Pay, Google Pay) in a browser sheet. The app does not display or collect card numbers. Funds are held securely until the client confirms the work. The app never unlocks anything because of a payment.
 >
-> **Sign in with Apple (Guideline 4.8).** The app offers Google sign-in, and also offers **Sign in with Apple** on the same screens: the sign-in screen and the contractor sign-up (the client sign-up form uses email and password only). Email + password is also available.
+> **Sign in with Apple (Guideline 4.8).** The app offers Google sign-in, and also offers **Sign in with Apple** on the same screens: the welcome (sign-in) screen and the contractor sign-up (the client sign-up form uses email and password only). Email + password is also available.
 >
 > **Account deletion (Guideline 5.1.1(v)).** `[SEE LAUNCH BLOCKER B1. Fill ONE of the two paragraphs below, the one that is true at submission.]`
 > - *If 4.18/E3 has shipped:* Account tab, Delete account. It confirms, deletes the account, and revokes the Sign in with Apple token. Deletion is blocked while a job is active; the app says why.
