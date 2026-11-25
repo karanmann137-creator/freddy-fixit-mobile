@@ -8,6 +8,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 export async function kvGet(key: string): Promise<string | null> {
   try { return await AsyncStorage.getItem(key); } catch { return null; }
 }
+/** Like kvGet, but says whether the read itself failed ("couldn't read" is not "nothing stored"). */
+export async function kvRead(key: string): Promise<{ ok: true; value: string | null } | { ok: false }> {
+  try { return { ok: true, value: await AsyncStorage.getItem(key) }; } catch { return { ok: false }; }
+}
 export async function kvSet(key: string, value: string): Promise<void> {
   try { await AsyncStorage.setItem(key, value); } catch { /* best effort */ }
 }

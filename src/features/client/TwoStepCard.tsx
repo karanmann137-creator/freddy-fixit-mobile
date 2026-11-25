@@ -7,7 +7,7 @@
 // system share sheet (Notes, Messages, a password manager, Save to Files).
 // "Done" unlocks only once the share sheet has completed, as web unlocks it after
 // Download/Copy. A failed status read says so and offers a retry; it never says "off".
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Share, View } from "react-native";
 import { Button, Card, Pill, Txt, rgba, useTheme, Field, FormNote } from "@/kit";
 import { supabase } from "@/lib/supabase";
@@ -29,6 +29,8 @@ export function TwoStepCard() {
   const [note, setNote] = useState("");
   const [recovery, setRecovery] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
+  // One verification in flight at a time: the keyboard's submit bypasses the button's loading state.
+  const verifying = useRef(false);
 
   useEffect(() => {
     let stale = false;
@@ -55,8 +57,11 @@ export function TwoStepCard() {
   );
   const body = (text: React.ReactNode) => <Txt size={0.88} color={rgba(t.muted, 0.95)} lh={1.5} style={{ marginBottom: t.s3 }}>{text}</Txt>;
 
+  // Codes the server has already issued are shown whatever the status refresh says:
+  // they can never be shown again (CodeRabbit #6).
+  const codesPending = stage === "codes";
   // A failed read is not "two-step is off": that would invite turning it on again and wiping the recovery codes.
-  if (read && !read.res.ok && !lastGood) {
+  if (!codesPending && read && !read.res.ok && !lastGood) {
     return (
       <Card style={{ padding: t.s4 }}>
         {title(null)}
@@ -69,7 +74,7 @@ export function TwoStepCard() {
     );
   }
   const st = cur && cur.ok ? cur.st : lastGood;
-  if (!st) {
+  if (!codesPending && !st) {
     return <Card style={{ padding: t.s4 }}>{title(null)}{body("Loading…")}</Card>;
   }
 
@@ -89,6 +94,8 @@ export function TwoStepCard() {
   }
 
   async function verifyEnroll() {
+    if (verifying.current || code.length !== 6) return;
+    verifying.current = true;
     setErr(""); setNote(""); setBusy(true);
     try {
       const { data: raw, error } = await supabase.rpc("mfa_verify", { p_code: code, p_purpose: "enroll" });
@@ -101,7 +108,7 @@ export function TwoStepCard() {
       reread();
     } catch (e: any) {
       setErr(e?.message || "Couldn't check that code.");
-    } finally { setBusy(false); }
+    } finally { verifying.current = false; setBusy(false); }
   }
 
   async function doDisable() {
@@ -127,6 +134,8 @@ export function TwoStepCard() {
   }
 
   async function verifyThenDisable() {
+    if (verifying.current || code.length !== 6) return;
+    verifying.current = true;
     setErr(""); setBusy(true);
     try {
       const { data: raw, error } = await supabase.rpc("mfa_verify", { p_code: code, p_purpose: "disable" });
@@ -136,7 +145,7 @@ export function TwoStepCard() {
       await doDisable();
     } catch (e: any) {
       setErr(e?.message || "Couldn't check that code.");
-    } finally { setBusy(false); }
+    } finally { verifying.current = false; setBusy(false); }
   }
 
   async function shareCodes() {
@@ -185,7 +194,7 @@ export function TwoStepCard() {
             <Button full variant="ghost" onPress={() => { setStage("idle"); setCode(""); setErr(""); setNote(""); }}>Cancel</Button>
           </View>
         </>
-      ) : st.enabled ? (
+      ) : st?.enabled ? (
         <>
           {body("When you sign in, we'll email you a 6-digit code. Someone who learns your password still can't get in without your email.")}
           {body(`${st.recovery_left} of your recovery codes are unused.` + (st.recovery_left <= 2 ? " Turn two-step off and on again to get a fresh set." : ""))}

@@ -18,7 +18,7 @@
 //     sign-out (features/auth/flow.ts) so the next person on a shared phone never
 //     sees it: that is this platform's "end of the session".
 import { useEffect, useState } from "react";
-import { kvGet, kvRemove, kvSet } from "@/platform/storage";
+import { kvRead, kvRemove, kvSet } from "@/platform/storage";
 
 /** One key per form. They hold different shapes and must never cross-restore. */
 export const ONBOARDING_DRAFT_KEY = "ff_req_draft_signup";
@@ -36,16 +36,22 @@ function keysOf(o: Record<string, unknown>): string[] {
   return Object.keys(o);
 }
 
+/** Native only: the draft, and whether storage could be read at all. Never throws. */
+async function readDraftResult(key: string): Promise<{ readFailed: boolean; draft: Record<string, unknown> | null }> {
+  const r = await kvRead(key);
+  if (!r.ok) return { readFailed: true, draft: null };
+  try {
+    if (!r.value) return { readFailed: false, draft: null };
+    const p = JSON.parse(r.value) as Stored;
+    if (!p || p.v !== DRAFT_VERSION || !p.data || typeof p.data !== "object") return { readFailed: false, draft: null };
+    if (!Number.isFinite(p.at) || Date.now() - p.at > MAX_AGE_H * 3600_000) { await clearDraft(key); return { readFailed: false, draft: null }; }
+    return { readFailed: false, draft: p.data };
+  } catch { return { readFailed: false, draft: null }; } // unreadable JSON: nothing worth keeping
+}
+
 /** Read a draft, or null. Never throws: storage can fail and a lost draft must never break the form. */
 export async function readDraft(key: string): Promise<Record<string, unknown> | null> {
-  try {
-    const raw = await kvGet(key);
-    if (!raw) return null;
-    const p = JSON.parse(raw) as Stored;
-    if (!p || p.v !== DRAFT_VERSION || !p.data || typeof p.data !== "object") return null;
-    if (!Number.isFinite(p.at) || Date.now() - p.at > MAX_AGE_H * 3600_000) { await clearDraft(key); return null; }
-    return p.data;
-  } catch { return null; }
+  return (await readDraftResult(key)).draft;
 }
 
 export async function clearDraft(key: string): Promise<void> {
@@ -97,11 +103,11 @@ export function useDraftAutosave(key: string, data: Record<string, unknown>, ena
  * and clears the stored copy; the caller remounts the form blank (web reloads).
  */
 export function useStoredDraft(key: string) {
-  const [read, setRead] = useState<{ ready: boolean; draft: Record<string, unknown> | null }>({ ready: false, draft: null });
+  const [read, setRead] = useState<{ ready: boolean; readFailed: boolean; draft: Record<string, unknown> | null }>({ ready: false, readFailed: false, draft: null });
   const [shown, setShown] = useState(true);
   useEffect(() => {
     let alive = true;
-    void readDraft(key).then((draft) => { if (alive) setRead({ ready: true, draft }); });
+    void readDraftResult(key).then((r) => { if (alive) setRead({ ready: true, ...r }); });
     return () => { alive = false; };
   }, [key]);
   return {
@@ -109,6 +115,9 @@ export function useStoredDraft(key: string) {
     draft: read.draft,
     /** Native only: the read has landed (the form may mount). */
     ready: read.ready,
+    /** Native only: false when storage couldn't be READ. The form still mounts blank (a lost
+     *  draft never breaks it), but must not autosave over a draft it never saw. */
+    saveable: !read.readFailed,
     /** Show the "we saved your progress" banner. */
     restored: shown && draftWorthOffering(read.draft),
     startOver: () => { setShown(false); void clearDraft(key); },

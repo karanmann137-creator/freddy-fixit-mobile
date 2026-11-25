@@ -20,11 +20,15 @@ type Draft = Record<string, unknown> | null;
 export type CoreKeys = { description: "description" | "jobDescription"; schedule: "schedule" | "preferredSchedule" };
 
 function restoreAnswers(draft: Draft): JobAnswers {
-  // Free-form id->string map: keep only the string values (web, both forms).
+  // Free-form id->answer map: keep strings, and the string arrays setAnswer writes for a
+  // multi-select question; drop anything else.
   const raw = draft?.answers;
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
   const out: JobAnswers = {};
-  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) if (typeof v === "string") out[k] = v;
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === "string") out[k] = v;
+    else if (Array.isArray(v) && v.every((x) => typeof x === "string")) out[k] = v as string[];
+  }
   return out;
 }
 
