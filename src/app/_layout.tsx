@@ -16,6 +16,7 @@ import { Archivo_700Bold } from "@expo-google-fonts/archivo/700Bold";
 import { ConfirmHost, ThemeProvider, ToastHost, useTheme } from "@/kit";
 import { initPrefs } from "@/lib/theme";
 import { TermsHost } from "@/features/legal/TermsHost";
+import { CompletionThanksHost } from "@/features/client/CompletionThanksHost";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -30,6 +31,8 @@ function Shell() {
       <ToastHost />
       {/* Without it ensureTermsAccepted() fails open: changed terms would never be shown. */}
       <TermsHost />
+      {/* Without it the job-done review/referral ask stamps its cooldown and shows nothing. */}
+      <CompletionThanksHost />
     </>
   );
 }

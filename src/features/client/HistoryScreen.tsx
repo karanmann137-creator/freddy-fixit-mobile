@@ -1,8 +1,10 @@
 // History (PLAN step 4.16): past requests (completed or cancelled), from useClientData.
-// No per-job read and no money here: receipts, ratings and statements are the
-// website's (web builds them from the job and payment records), so the app hands off.
+// No per-job read and no money here: receipts and yearly statements are the website's
+// (web builds them from the job and payment records), so the app hands those off.
+// Rating a finished job is in the app (step 4.13: ReviewScreen, same RPC as web).
 import React, { useState } from "react";
 import { View } from "react-native";
+import { router } from "expo-router";
 import { Button, Card, DeadEnd, Group, Pill, Row, Screen, ScreenHeader, SkRow, Txt, rgba, useDelayed, useTheme, type IconName, type PillTone, type RowTone } from "@/kit";
 import { useClientData } from "./data";
 import { isPastRequest } from "./rules";
@@ -70,10 +72,10 @@ export function HistoryScreen() {
                       title={r.service_needed ?? "Request"}
                       sub={r.created_at ? new Date(r.created_at).toLocaleDateString("en-CA") : undefined}
                       right={<Pill tone={m?.tone ?? "neutral"}>{m?.label ?? String(r.status)}</Pill>}
-                      // A finished job's receipt and rating live on the website for now.
+                      // A finished job opens the rating screen (which also says if it is already rated).
                       chevron={r.status === "completed"}
-                      onPress={r.status === "completed" ? () => openOnWeb("/client-dashboard") : undefined}
-                      accessibilityLabel={r.status === "completed" ? `${r.service_needed ?? "Request"}, completed. Open on the website to view and rate.` : undefined}
+                      onPress={r.status === "completed" ? () => router.push({ pathname: "/client/review/[requestId]", params: { requestId: r.id } }) : undefined}
+                      accessibilityLabel={r.status === "completed" ? `${r.service_needed ?? "Request"}, completed. View and rate.` : undefined}
                     />
                   );
                 })}

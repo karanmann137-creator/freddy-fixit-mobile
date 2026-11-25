@@ -647,7 +647,7 @@ before its PR merges.**
 |---|---|---|
 | 7.1 | E2 `return` enum on charge + connect functions (lands **before** 4.7 in practice; listed here because it's a web ship) | Opus |
 | 7.2 | D3 `app_config()` + update gate + EAS Update channels | Sonnet |
-| 7.3 | Store prep: icons/splash, privacy nutrition labels / Data safety form (matching Privacy Policy §6.2), review notes (3.1.3(e) physical services, demo accounts for both roles, Sign in with Apple present, account deletion location) | Sonnet |
+| 7.3 | Store prep: icons/splash, privacy nutrition labels / Data safety form (matching Privacy Policy §6.2), review notes (3.1.3(e) physical services, demo accounts for both roles, Sign in with Apple present, account deletion location). **Draft written: `docs/STORE.md` (privacy forms, review notes, listing, launch blockers; owner fills the placeholders).** | Sonnet |
 | 7.4 | E3 Apple revoke in `delete-account` (lands before 4.18) | Opus |
 | 7.5 | TestFlight / Play internal test: the owner runs both roles end to end on one real job; `freddy-money-test` against a real Checkout from the app | Opus |
 | — | **Owner, start now (longest lead time):** request the business's free **D-U-N-S number** from Dun & Bradstreet. Apple's *Organization* developer enrolment and a Google Play *organization* account both require one, and issuing it can take weeks. Then enrol both under the business's legal name (the store listing shows it), using a role inbox such as `hello@freddyfixit.ca` rather than a personal address. Phases 1–3 can run on a free dev build in the meantime; only TestFlight/Play testing (7.5) waits on the accounts. | — |

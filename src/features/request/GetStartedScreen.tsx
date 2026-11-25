@@ -374,7 +374,7 @@ function SignupForm({ draft, restored, saveable, onStartOver, initialRef, servic
           <View style={{ marginTop: t.s5, padding: t.s5, borderRadius: t.r3, backgroundColor: rgba(t.accentRgb, 0.08), borderWidth: ui.line, borderColor: rgba(t.accentRgb, 0.28) }}>
             <Txt variant="label" size={1.3} ls={0.04}>Invite a friend, they save</Txt>
             <Txt size={0.84} lh={1.5} color={rgba(t.muted, 0.75)} style={{ marginTop: t.s1 }}>
-              {"Friends who join with your code get the "}<Txt variant="bodyBold" size={0.84}>3% service fee waived on their first job</Txt>.
+              {"Friends who join with your code get the "}<Txt variant="bodyBold" size={0.84}>service fee waived on their first job</Txt>.
             </Txt>
             <View style={{ flexDirection: "row", alignItems: "center", gap: t.s3, marginTop: t.s4, flexWrap: "wrap" }}>
               <View style={{ paddingHorizontal: t.s4, paddingVertical: t.s1, borderRadius: t.r2, borderWidth: ui.line, borderStyle: "dashed", borderColor: rgba(t.fg, 0.25) }}>
@@ -479,7 +479,7 @@ function SignupForm({ draft, restored, saveable, onStartOver, initialRef, servic
             <Note>At least 8 characters. Length beats symbols — four random words is stronger than one word with punctuation.</Note>
             <Field label="Referral code (optional)" value={form.referralCode} onChangeText={(v) => set("referralCode", v.toUpperCase())}
               autoCapitalize="characters" autoCorrect={false} maxLength={24} placeholder="A friend's code"
-              hint="Referred by someone? Enter their code and we’ll waive the 3% service fee on your first job. Prefilled automatically if you arrived from an invite link." />
+              hint="Referred by someone? Enter their code and we’ll waive the service fee on your first job. Prefilled automatically if you arrived from an invite link." />
             <TermsTick adult checked={agreedToTerms} onChange={(v) => { setAgreedToTerms(v); if (v) setSubmitError(""); }} />
             <Tick checked={newsletterOptIn} onChange={setNewsletterOptIn} label="Email me practical Calgary home and vehicle tips">
               <Txt size={0.82} lh={1.6} color={rgba(t.muted, 0.75)}>Email me practical Calgary home &amp; vehicle tips (about once a week — unsubscribe anytime).</Txt>
