@@ -18,6 +18,7 @@ import { readAuthUser } from "@/lib/authRead";
 import { mfaOwed } from "@/lib/mfa";
 import { clearMyProfile } from "@/lib/myProfile";
 import { clearTermsStatus } from "@/lib/terms";
+import { NEWREQUEST_DRAFT_KEY, clearDraft } from "@/lib/requestDraft";
 import { kvGetJson, kvRemove, kvSetJson } from "@/platform/storage";
 import { notify } from "@/kit";
 import { resolveDestination, type Destination, type WantedRole } from "./destination";
@@ -126,6 +127,9 @@ export async function signOut(): Promise<boolean> {
   }
   await clearSignIn();
   await kvRemove("ff_recovery_ok"); // N3: a reset link's 15-minute window ends with the session
+  // The signed-in request draft holds a description of someone's home: web keeps it in
+  // sessionStorage, which dies with the tab; on a phone it ends with the session.
+  await clearDraft(NEWREQUEST_DRAFT_KEY);
   router.replace("/welcome");
   return true;
 }

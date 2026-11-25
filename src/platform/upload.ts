@@ -16,7 +16,9 @@ const MIME: Record<string, string> = {
   gif: "image/gif", avif: "image/avif", pdf: "application/pdf",
 };
 
-export type UploadResult = { ok: true; path: string } | { ok: false; message: string };
+/** `blocked` = the safety scan refused the image (the upload itself worked). Callers
+ *  treat it differently from a failed upload: web drops a refused photo and says so. */
+export type UploadResult = { ok: true; path: string } | { ok: false; message: string; blocked?: boolean };
 
 function extOf(a: UploadAsset): string {
   const fromName = (a.fileName || "").split(".").pop()?.toLowerCase();
@@ -47,7 +49,7 @@ export async function uploadImage(opts: {
     });
     if (error) return { ok: false, message: "Couldn't upload that photo. Check your connection and try again." };
     const scan = await scanImage(opts.bucket, path); // never throws; "unknown" on any problem
-    if (shouldBlock(scan, { evidence: !!opts.evidence })) return { ok: false, message: rejectMessage(scan) };
+    if (shouldBlock(scan, { evidence: !!opts.evidence })) return { ok: false, message: rejectMessage(scan), blocked: true };
     return { ok: true, path };
   } catch {
     return { ok: false, message: "Couldn't read that photo. Try choosing it again." };

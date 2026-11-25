@@ -37,8 +37,8 @@ export function WelcomeScreen() {
       <OAuthButtons signInSurface />
       <View style={{ marginTop: t.s6, borderTopWidth: t.hairW, borderTopColor: t.hair, paddingTop: t.s4 }}>
         <Txt size={0.85} color={rgba(t.muted, 0.7)}>New to Freddy Fix It?</Txt>
-        {/* Native signup arrives in Phase 4 (clients) and Phase 5 (contractors). Until then, the web funnels. */}
-        <TextLink onPress={() => WebBrowser.openBrowserAsync(`${WEB}/client-onboarding`)}>Get a repair done →</TextLink>
+        {/* Client signup is native (PLAN 4.4). Contractor signup arrives in Phase 5; until then, the web funnel. */}
+        <TextLink onPress={() => router.push("/get-started")}>Get a repair done →</TextLink>
         <TextLink onPress={() => WebBrowser.openBrowserAsync(`${WEB}/contractor-onboarding`)}>Join as a contractor →</TextLink>
       </View>
     </AuthShell>

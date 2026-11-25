@@ -102,6 +102,10 @@ export async function resolveDestination(userId: string, wantedRole: WantedRole)
   // No funnel intent (plain sign-in, or app launch). Established accounts skip the chooser.
   if (role === "admin") return byRole(role);
   if (role === "contractor") return contractorHome(userId);
+  // A code typed in the signup funnel whose email link opened on the website: the
+  // person then signs in here with no funnel intent, so the stash is redeemed on
+  // this branch too (review G4a #1). No-op when nothing is stashed; never throws.
+  await applyReferralAtSignup(await stashedReferralCode());
   if (await kvGet(roleChosenKey(userId))) return byRole(role);
   const [reqs, con] = await Promise.all([
     supabase.from("client_requests").select("id").eq("user_id", userId).limit(1),
