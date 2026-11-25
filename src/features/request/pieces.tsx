@@ -21,7 +21,20 @@ import type { RequestCore } from "./useRequestCore";
 /** A calendar date as the DB `date` columns take it. A shape check on what was typed, not a rule. */
 const ON_ORANGE = "#fff"; // rule-ok: white on orange, the same pair as the kit primary Button
 
-export const isIsoDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(new Date(v + "T00:00:00").getTime());
+export const isIsoDate = (v: string) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+  if (!m) return false;
+  // Check the parts, not the parser: an engine may roll 2027-02-30 into March.
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const dt = new Date(y, mo - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === mo - 1 && dt.getDate() === d;
+};
+
+/** Today as YYYY-MM-DD in the phone's own time zone (toISOString() is UTC: after 5 pm in Calgary it is tomorrow). */
+const localToday = () => {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`;
+};
 
 // ---------------------------------------------------------------- small parts
 export function Label({ children, aside, first }: { children: string; aside?: string; first?: boolean }) {
@@ -396,7 +409,7 @@ function RecurringBox({ core }: { core: RequestCore }) {
   const addDate = () => {
     const d = newDate.trim();
     if (!isIsoDate(d)) { setDateErr("Type the date as YYYY-MM-DD, e.g. 2026-12-15."); return; }
-    if (d < new Date().toISOString().slice(0, 10)) { setDateErr("Pick a date from today on."); return; } // web: <input type=date min={today}>
+    if (d < localToday()) { setDateErr("Pick a date from today on."); return; } // web: <input type=date min={today}>
     core.addDate(d); setNewDate(""); setDateErr("");
   };
   return (

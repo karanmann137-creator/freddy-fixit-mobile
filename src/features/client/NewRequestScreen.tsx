@@ -23,7 +23,7 @@ import React, { useEffect, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Crypto from "expo-crypto";
-import { Button, DeadEnd, Field, FormNote, Ic, Screen, ScreenHeader, SkRow, Txt, rgba, ui, useDelayed, useTheme } from "@/kit";
+import { Button, DeadEnd, Field, FormNote, Ic, Screen, ScreenHeader, SkRow, Txt, notify, rgba, ui, useDelayed, useTheme } from "@/kit";
 import { supabase } from "@/lib/supabase";
 import { readAuthUser } from "@/lib/authRead";
 import { acceptTerms } from "@/lib/terms";
@@ -117,15 +117,15 @@ export function NewRequestScreen() {
     );
   }
   return (
-    <NewRequestForm key={gen} ctx={load.ctx} draft={gen ? null : stored.draft} restored={gen === 0 && stored.restored}
+    <NewRequestForm key={gen} ctx={load.ctx} draft={gen ? null : stored.draft} restored={gen === 0 && stored.restored} saveable={stored.saveable}
       onStartOver={() => { stored.startOver(); setGen((g) => g + 1); }}
       proParam={typeof params.pro === "string" && params.pro ? params.pro : null}
       serviceParam={gen ? null : (typeof params.service === "string" ? params.service : null)} />
   );
 }
 
-function NewRequestForm({ ctx, draft, restored, onStartOver, proParam, serviceParam }: {
-  ctx: Ctx; draft: Record<string, unknown> | null; restored: boolean; onStartOver: () => void; proParam: string | null; serviceParam: string | null;
+function NewRequestForm({ ctx, draft, restored, saveable, onStartOver, proParam, serviceParam }: {
+  ctx: Ctx; draft: Record<string, unknown> | null; restored: boolean; saveable: boolean; onStartOver: () => void; proParam: string | null; serviceParam: string | null;
 }) {
   const { t } = useTheme();
   const { state, reload } = useClientData();
@@ -165,7 +165,7 @@ function NewRequestForm({ ctx, draft, restored, onStartOver, proParam, servicePa
   const clearErr = (k: string) => setErrors((e) => (e[k] ? { ...e, [k]: "" } : e));
 
   // Photo, errors, busy flags and the terms tick are never saved (requestDraft header).
-  useDraftAutosave(NEWREQUEST_DRAFT_KEY, { step, ...core.snapshot(), locChoice, vehChoice, vehYear, vehMake, vehModel }, !submitting && !done);
+  useDraftAutosave(NEWREQUEST_DRAFT_KEY, { step, ...core.snapshot(), locChoice, vehChoice, vehYear, vehMake, vehModel }, saveable && !submitting && !done);
 
   useEffect(() => { trackEvent("onboarding_step_view", { flow: "returning_client", step, step_name: STEP_NAMES[step - 1] }); }, [step]);
 
@@ -205,6 +205,12 @@ function NewRequestForm({ ctx, draft, restored, onStartOver, proParam, servicePa
   const submit = async (split?: SplitPart[] | "one") => {
     if (submitting) return;
     if (!validate()) return;
+    // The phone is asked on step 1 and never saved in a draft (requestDraft): a draft
+    // restored past step 1 has none. Same rule as step 1, checked again before posting.
+    if (!profile?.phone) {
+      const pv = validatePhone(phone, true);
+      if (!pv.ok) { setStep(1); setErrors({ phone: pv.error! }); return; }
+    }
     if (!agreedToTerms) { setSubmitError("Please agree to the User Agreement and Privacy Policy to continue."); return; }
     setSubmitting(true); setSubmitError("");
     try {
@@ -244,6 +250,7 @@ function NewRequestForm({ ctx, draft, restored, onStartOver, proParam, servicePa
       const location = enteringNew ? formatApproxLocation(core.postalCode, core.area) : prev.text;
 
       let vehicleDetails: any = null;
+      let vehicleSaveFailed = false;
       if (isVehicle) {
         if (vehChoice !== "new") {
           const v = vehicles.find((x) => x.id === vehChoice);
@@ -251,7 +258,11 @@ function NewRequestForm({ ctx, draft, restored, onStartOver, proParam, servicePa
         } else if (vehYear.trim() || vehMake.trim() || vehModel.trim()) {
           vehicleDetails = { year: vehYear.trim(), make: vehMake.trim(), model: vehModel.trim() };
           if (saveNewVehicle) {
-            await supabase.from("saved_vehicles").insert({ user_id: uid, year: vehYear.trim() || null, make: vehMake.trim() || null, model: vehModel.trim() || null });
+            // Saving it for next time is a convenience: a failure never blocks the request, but it is said (below).
+            try {
+              const { error: vErr } = await supabase.from("saved_vehicles").insert({ user_id: uid, year: vehYear.trim() || null, make: vehMake.trim() || null, model: vehModel.trim() || null });
+              vehicleSaveFailed = !!vErr;
+            } catch { vehicleSaveFailed = true; }
           }
         }
       }
@@ -305,6 +316,7 @@ function NewRequestForm({ ctx, draft, restored, onStartOver, proParam, servicePa
       acceptTerms("new-request").catch(() => { /* covered by the terms gate */ });
       trackEvent("post_job", { flow: "returning_client" });
       setDone(true); // autosave stays off for good
+      if (vehicleSaveFailed) notify("Your request is posted. We couldn't save the vehicle for next time.", "danger");
       await clearDraft(NEWREQUEST_DRAFT_KEY);
       await reload();
       router.dismissTo("/client");
