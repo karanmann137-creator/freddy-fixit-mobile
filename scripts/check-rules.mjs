@@ -260,6 +260,19 @@ const MOUNTS = [
   { file: "src/features/contractor/calendarRules.ts", needle: "timeZone: TZ", min: 1, why: "the calendar buckets days on the Calgary clock; without the zone a 9pm job lands on the wrong day by device or UTC (web CLAUDE.md timezone rule)" },
   { file: "src/features/contractor/JobsScreen.tsx", needle: "nav.calendar", min: 2, why: "the List/Calendar toggle must follow web's visibleNav (a job with scheduled_at); always-on shows an empty month" },
   { file: "src/features/contractor/JobsScreen.tsx", needle: "<CalendarView", min: 1, why: "without it the Calendar toggle selects nothing and no error shows" },
+  // Phase 4.6: pick link. 4.13: rating, job-done ask.
+  { file: "src/features/client/PickScreen.tsx", needle: "own.data.user_id === who.userId", min: 1, why: "ownership is the id comparison, never 'the RLS-filtered read returned a row' (web 2026-11-09: the admin's blanket policy returned every token)" },
+  { file: "src/features/client/PickScreen.tsx", needle: ".maybeSingle()", min: 1, why: "never .single(): an unknown token legitimately returns nothing" },
+  { file: "src/features/client/PickScreen.tsx", needle: "retry={false}", min: 2, why: "a bad or spent link is a refusal with a way on, not a retry loop" },
+  { file: "src/features/client/PickScreen.tsx", needle: "onRetry={retry}", min: 1, why: "a failed read must offer retry, never read as 'expired link' or 'no estimates'" },
+  { file: "src/features/client/PickScreen.tsx", needle: "openOnWeb(`/pick/", min: 1, why: "Choose hands the SAME /pick/<token> to the website (accept_bid_by_token is W1); without it the token is dropped and Choose does nothing" },
+  { file: "src/features/client/ReviewScreen.tsx", needle: "req.user_id === userId", min: 1, why: "the request must be the signed-in person's own: compare ids, don't trust that the read returned it" },
+  { file: "src/features/client/ReviewScreen.tsx", needle: '"Couldn\'t submit rating: " + error.message', min: 1, why: "submit_review's refusal (already rated, not your job) is a readable server sentence; without it Submit silently does nothing" },
+  { file: "src/features/client/ReviewScreen.tsx", needle: "if (rv.error) return", min: 1, why: "a failed reviews read must not read as 'not rated yet' (it would offer a second rating)" },
+  { file: "src/features/client/ReviewScreen.tsx", needle: "requestCompletionThanks(", min: 1, why: "the job-done review/referral ask: without the call it never appears, with no error" },
+  { file: "src/features/client/HistoryScreen.tsx", needle: "/client/review/[requestId]", min: 1, why: "the in-app rating entry for a completed request (replaced the website handoff)" },
+  { file: "src/app/_layout.tsx", needle: "<CompletionThanksHost", min: 1, why: "without it the job-done ask stamps its cooldown and shows nothing, so the person is never asked again" },
+  { file: "src/features/client/CompletionThanksHost.tsx", needle: "on(COMPLETION_THANKS_EVENT", min: 1, why: "the host must listen, or requestCompletionThanks emits to nobody" },
   { file: "src/lib/imageCompress.ts", needle: 't === "application/pdf"', min: 1, why: "PDFs must pass through compressImage untouched (web: the document profile never re-encodes a PDF)" },
 ];
 for (const m of MOUNTS) {
