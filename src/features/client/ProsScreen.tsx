@@ -90,6 +90,8 @@ export function ProsScreen() {
                 tone="neutral"
                 title={pro.company_name || pro.name || "Your pro"}
                 sub={subFor(pro)}
+                accessibilityLabel={"View " + (pro.company_name || pro.name || "your pro") + "'s profile"}
+                onPress={() => router.push({ pathname: "/pro/[id]", params: { id: pro.contractor_id } })}
                 right={
                   <View style={{ flexDirection: "row", alignItems: "center", gap: t.s2 }}>
                     <Button variant="ghost" accessibilityLabel={isFav(pro) ? "Remove favourite" : "Add favourite"} onPress={() => void toggleFav(pro.contractor_id)}>

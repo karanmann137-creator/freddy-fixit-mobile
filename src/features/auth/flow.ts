@@ -19,6 +19,7 @@ import { mfaOwed } from "@/lib/mfa";
 import { clearMyProfile } from "@/lib/myProfile";
 import { clearTermsStatus } from "@/lib/terms";
 import { NEWREQUEST_DRAFT_KEY, clearDraft } from "@/lib/requestDraft";
+import { CONTRACTOR_DRAFT_KEY } from "@/features/contractor/webPage";
 import { kvGetJson, kvRemove, kvSetJson } from "@/platform/storage";
 import { notify } from "@/kit";
 import { resolveDestination, type Destination, type WantedRole } from "./destination";
@@ -130,6 +131,9 @@ export async function signOut(): Promise<boolean> {
   // The signed-in request draft holds a description of someone's home: web keeps it in
   // sessionStorage, which dies with the tab; on a phone it ends with the session.
   await clearDraft(NEWREQUEST_DRAFT_KEY);
+  // The contractor onboarding draft holds name, phone, licence and insurance details:
+  // the next person on this phone must never see them (CodeRabbit #7, security).
+  await kvRemove(CONTRACTOR_DRAFT_KEY);
   router.replace("/welcome");
   return true;
 }

@@ -72,8 +72,9 @@ async function hasContractorRow(userId: string): Promise<boolean | null> {
   return error ? null : !!data;
 }
 
-/** A contractor lands on onboarding until their contractors row exists. */
-async function contractorHome(userId: string): Promise<Destination> {
+/** A contractor lands on onboarding until their contractors row exists. Exported so the
+ *  onboarding screen decides "already onboarded?" and "done, go home" with this SAME test. */
+export async function contractorHome(userId: string): Promise<Destination> {
   const c = await hasContractorRow(userId);
   if (c === null) return { kind: "error", msg: OFFLINE };
   return c ? { kind: "contractor" } : { kind: "contractorOnboarding" };

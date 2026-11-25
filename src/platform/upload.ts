@@ -35,19 +35,25 @@ function extOf(a: UploadAsset): string {
  * @param basePath path WITHOUT extension; the extension follows the compressed file
  * @param evidence true for job evidence (before/after, milestones, disputes): only
  *                 sexual/hate block, same as web `shouldBlock(scan, { evidence: true })`
+ * @param upsert   overwrite an object already at the path (web: the contractor's
+ *                 avatar and documents, which keep fixed names like `<uid>/gov_id.webp`)
+ * @param scan     false only where the web call site uploads WITHOUT scan-image
+ *                 (contractor onboarding's photo and documents). Default true.
  */
 export async function uploadImage(opts: {
-  bucket: string; basePath: string; asset: UploadAsset; profile?: CompressProfile; evidence?: boolean;
+  bucket: string; basePath: string; asset: UploadAsset; profile?: CompressProfile; evidence?: boolean; upsert?: boolean; scan?: boolean;
 }): Promise<UploadResult> {
   try {
-    const small = await compressImage(opts.asset, opts.profile ?? "photo");
+    const small = await compressImage(opts.asset, opts.profile ?? "photo"); // PDFs/GIFs come back untouched
     const path = `${opts.basePath}.${extOf(small)}`;
     const body = await new File(small.uri).arrayBuffer();
     const { error } = await supabase.storage.from(opts.bucket).upload(path, body, {
       // Never undefined: storage-js would default an ArrayBuffer to text/plain (HEIC pickers report "").
       contentType: small.mimeType || MIME[extOf(small)] || "application/octet-stream",
+      upsert: !!opts.upsert,
     });
     if (error) return { ok: false, message: "Couldn't upload that photo. Check your connection and try again." };
+    if (opts.scan === false) return { ok: true, path };
     const scan = await scanImage(opts.bucket, path); // never throws; "unknown" on any problem
     if (shouldBlock(scan, { evidence: !!opts.evidence })) return { ok: false, message: rejectMessage(scan), blocked: true };
     return { ok: true, path };
