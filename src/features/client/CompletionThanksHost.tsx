@@ -59,7 +59,7 @@ export function CompletionThanksHost() {
         {code ? (
           <View style={{ gap: t.s3, paddingTop: review ? t.s3 : 0, borderTopWidth: review ? t.hairW : 0, borderTopColor: t.hair }}>
             <Txt size={0.85} lh={1.5} color={rgba(t.muted, 0.9)} style={{ textAlign: "center" }}>
-              {"Your code waives the 3% service fee on a friend's first job. It's good for one friend."}
+              {"Your code waives the service fee on a friend's first job. It's good for one friend."}
             </Txt>
             <Txt selectable variant="label" size={1.5} ls={0.12} color={t.text} style={{ textAlign: "center" }}>{code}</Txt>
             <Button full onPress={() => void share()}>Share invite link</Button>

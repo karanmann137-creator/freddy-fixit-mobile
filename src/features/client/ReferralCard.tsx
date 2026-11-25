@@ -85,7 +85,7 @@ export function ReferralCard() {
       const res = data as { ok?: boolean; reason?: string } | null;
       if (res?.ok === true) {
         setInput("");
-        setMsg({ ok: true, text: "Code applied. Your 3% service fee is waived on your first job." });
+        setMsg({ ok: true, text: "Code applied. Your service fee is waived on your first job." });
         setNonce((n) => n + 1); // re-read so the entry box goes away
       } else {
         setMsg({ ok: false, text: referralReasonText(String(res?.reason ?? "")) });
@@ -98,10 +98,10 @@ export function ReferralCard() {
   return shell(<>
     {heading(retired ? "FRIEND REFERRED" : "INVITE A FRIEND, THEY SAVE")}
     {para(retired
-      ? `You referred a friend and they booked their first job${rewardedOn ? " on " + rewardedOn : ""}. We covered their 3% service fee. Your code has done its job, so it's retired. Thanks for the introduction.`
+      ? `You referred a friend and they booked their first job${rewardedOn ? " on " + rewardedOn : ""}. We covered their service fee. Your code has done its job, so it's retired. Thanks for the introduction.`
       : inUse
         ? "A friend has your code right now. Each code is good for one friend, so it's on hold until they book. If they haven't within 30 days it frees up on its own."
-        : "Your code waives the 3% service fee on a friend's first job. It's good for one friend. Once they book, the code retires and you keep the badge.")}
+        : "Your code waives the service fee on a friend's first job. It's good for one friend. Once they book, the code retires and you keep the badge.")}
 
     {/* Sharing a code that will be refused is a dead end the sharer can't see, so it is hidden when retired or on hold. */}
     {retired ? null : (
@@ -116,7 +116,7 @@ export function ReferralCard() {
     {/* Only for someone who hasn't been referred: apply_referral_code refuses a second code. */}
     {!referral.i_was_referred ? (
       <View style={{ marginTop: t.s4, paddingTop: t.s3, borderTopWidth: t.hairW, borderTopColor: t.hair }}>
-        {para("Got a code from a friend? Enter it before your first job and we'll waive your 3% service fee.")}
+        {para("Got a code from a friend? Enter it before your first job and we'll waive your service fee.")}
         <Field label="Friend's code" value={input} onChangeText={(v) => { setInput(v.toUpperCase()); setMsg(null); }}
           autoCapitalize="characters" autoCorrect={false} maxLength={24} placeholder="Friend's code"
           onSubmitEditing={() => void apply()} />
