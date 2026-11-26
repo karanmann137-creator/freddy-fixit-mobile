@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@edcd3a3:src/lib/jobStage.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@fd39b99:src/lib/jobStage.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // ─────────────────────────────────────────────────────────────────────────────
 // src/lib/jobStage.ts — the ONE browser-side answer to "is this job live?"

@@ -31,7 +31,7 @@ const WEB_REPO = "https://github.com/karanmann137-creator/freddy-fixit";
 // PLAN.md §2.2 "Shared verbatim". Add a file here only if it touches no
 // window/document/localStorage at import time and imports only other shared
 // files or a native override (supabase, myProfile, imageCompress...).
-// chatUnread + bidThreads join after web prereq W2 (bus.ts).
+// jobRules arrived with web W1; chatUnread + bidThreads with W2 (bus.ts).
 export const SHARED = [
   "database.types", "authRead", "availability", "calgaryAreas", "chatParse",
   "checklistTemplates", "contractCopy", "contractorGuide", "dashSearch", "dismissals",
@@ -39,6 +39,7 @@ export const SHARED = [
   "jobSplit", "jobStage", "jobText", "mfa", "myProfile", "passwordStrength",
   "platformRates", "platformStatus", "priceChange", "recurrence", "respTime",
   "roleWrite", "servicePricing", "serviceTags", "stripeRequirements", "notificationRoutes",
+  "jobRules", "chatUnread", "bidThreads",
 ];
 
 const args = process.argv.slice(2);

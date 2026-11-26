@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@edcd3a3:src/lib/roleWrite.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@fd39b99:src/lib/roleWrite.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 import { supabase } from "@/lib/supabase";
 import { clearMyProfile } from "@/lib/myProfile";

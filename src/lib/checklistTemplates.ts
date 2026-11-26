@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@edcd3a3:src/lib/checklistTemplates.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@fd39b99:src/lib/checklistTemplates.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // Trade-personalized on-site checklist starters. Keyed by the client-facing
 // service label (client_requests.service_needed). A pro taps "Load suggested

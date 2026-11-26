@@ -1,4 +1,4 @@
-// GENERATED from freddy-fixit@edcd3a3:src/components/Ic.tsx (Lucide, ISC). DO NOT EDIT.
+// GENERATED from freddy-fixit@fd39b99:src/components/Ic.tsx (Lucide, ISC). DO NOT EDIT.
 export type GlyphShape = [tag: "path" | "rect" | "circle" | "polyline" | "polygon" | "line" | "ellipse", attrs: Record<string, string>];
 export const glyphs = {
  "star": [
