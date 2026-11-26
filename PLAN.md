@@ -140,7 +140,7 @@ app's equivalent is `platform/links.ts`.
 These ship through the web repo's normal `ship.py` path **before** the app screens that
 need them.
 
-- **W1: extract the pure predicates into `src/lib/jobRules.ts`.** Six predicates the app needs live inside `.tsx` component and page files:
+- **W1 (SHIPPED 2026-11-25, web b6f0c71; synced): extract the pure predicates into `src/lib/jobRules.ts`.** Six predicates the app needs live inside `.tsx` component and page files:
   - `photosMissing` (`components/JobPhotos.tsx`)
   - `addressMissing` (`components/ConfirmAddress.tsx`)
   - `canRemoveRequest` (`pages/client/shared.tsx`)
@@ -149,7 +149,7 @@ need them.
   - the local `jobBalance` / `jobTotal` copy in `ClientDashboard.tsx:1500`, which shadows `lib/jobFunding`
 
   Move each body verbatim and re-export it from its old file, so every mount and `check_mounts.py` needle is unchanged. `autopayNote` returns JSX today: split it into a pure `autopayNoteText()` plus the existing JSX wrapper. **Moving code that reads money flags goes through `freddy-payment-change`: it touches no guard, and the predicates stay byte-identical.**
-- **W2: `src/lib/bus.ts`.** `emit(name, detail)` / `on(name, fn) → off` over `window` CustomEvents. Re-point `chatUnread`, `bidThreads` and `completionPrompt` at it, keeping the event names. Web behaviour is identical, and the app overrides `bus.ts`.
+- **W2 (SHIPPED 2026-11-25, web fd39b99; chatUnread + bidThreads synced): `src/lib/bus.ts`.** `emit(name, detail)` / `on(name, fn) → off` over `window` CustomEvents. Re-point `chatUnread`, `bidThreads` and `completionPrompt` at it, keeping the event names. Web behaviour is identical, and the app overrides `bus.ts`.
 - **W3: device-independent email links.** See §4.4. This is a new `/auth/confirm` route, plus `.well-known` files and Vercel headers.
 - **W4: app-neutral wording in two synced files.** `roleWrite.ts` says "refresh the page" in its retry text, which reads oddly in the app. Change it to "try again" (true on both). Found while building Phase 3.
 - **W5: move the request-form helpers out of page files** (found building 4.3/4.4). `SERVICES`/`SCHEDULES`, `HOME_TO_SERVICE`, `composedPart`, `namesFromEmail`, `SEASON_PRESETS`/`seasonRange`, `prevApprox`, and PhotoPicker's 10 MB cap live in `ClientOnboarding.tsx`, `NewRequest.tsx` and `PhotoPicker.tsx`. The app carries a flagged byte-faithful copy in `src/features/request/webPage.ts` so both clients write identical rows; move them to a web `src/lib/requestForm.ts`, add it to the sync list, and delete the app copy. **Contractor side (found building 5.2):** `SPECIALTIES` (the canonical list), `WORK_TYPES`, the step titles, the contractor `namesFromEmail` (differs from the client one), the document list with its "needed before approval" flags, and the 10 MB document / 5 MB photo caps live only in `pages/ContractorOnboarding.tsx`. Flagged copy: `src/features/contractor/webPage.ts`; move to a web `src/lib/contractorForm.ts` the same way.

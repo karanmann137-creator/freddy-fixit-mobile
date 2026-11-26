@@ -1,4 +1,4 @@
-// GENERATED from freddy-fixit@edcd3a3:src/main.tsx by scripts/sync-shared.mjs. DO NOT EDIT.
+// GENERATED from freddy-fixit@fd39b99:src/main.tsx by scripts/sync-shared.mjs. DO NOT EDIT.
 // Raw CSS values with var() resolved. src/kit/theme.tsx turns them into numbers/colours.
 export const rawTokens = {
   dark: {
