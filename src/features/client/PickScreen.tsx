@@ -13,10 +13,11 @@
 //
 // THE TOKEN IS NEVER EXCHANGED FOR A SESSION (web). Signed out, nothing is routed
 // through sign-in: the page is useful without an account, and sign-in would drop
-// the token. The decision itself (accept_bid_by_token) is step 4.5 and needs W1, so
-// "Choose" hands the SAME /pick/<token> URL (plus ?bid=) to the website. It never
-// accepts anything from the app, and `?bid=` only outlines that pro's card (web:
-// a link in an email must not award a job).
+// the token. "Choose" calls accept_bid_by_token(token, bid) in-app, exactly as web
+// PickPro's `pick` does: a deliberate tap, no extra confirm (web has none here), the
+// server's own reason on a refusal, and the "booked in" confirmation rendered ABOVE
+// the already-chosen branch so the person sees their pick acknowledged. `?bid=`
+// only outlines that pro's card: a link in an email must never award a job.
 //
 // Three outcomes everywhere: a failed read is "couldn't load" + retry; a link the
 // server doesn't know or that is spent is a refusal (retry={false}) with a way on.
@@ -26,7 +27,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { Button, Card, DashCard, DeadEnd, Group, Ic, Pill, Row, Screen, ScreenHeader, SkRow, Txt, rgba, ui, useDelayed, useTheme } from "@/kit";
 import { supabase } from "@/lib/supabase";
 import { readAuthUser } from "@/lib/authRead";
-import { openOnWeb } from "./web";
 
 type Bid = {
   bid_id: string; company?: string | null; name?: string | null; photo_url?: string | null;
@@ -68,6 +68,9 @@ export function PickScreen() {
   const focusBid = (Array.isArray(params.bid) ? params.bid[0] : params.bid) ?? "";
   const [nonce, setNonce] = useState(0);
   const [loaded, setLoaded] = useState<{ key: string; out: Outcome } | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Bid | null>(null);
   const showSkeleton = useDelayed();
 
   // Keyed read: a result only counts under the key it was read for.
@@ -84,9 +87,40 @@ export function PickScreen() {
   }, [token, key]);
   const retry = useCallback(() => setNonce((n) => n + 1), []);
 
+  // Web PickPro `pick`: the token authorises the decision, server-side.
+  const pick = async (b: Bid) => {
+    if (busy) return;
+    setErr(null);
+    setBusy(String(b.bid_id));
+    try {
+      const { error } = await supabase.rpc("accept_bid_by_token", { p_token: token, p_bid_id: String(b.bid_id) });
+      if (error) { setErr(error.message); return; }
+      setPicked(b);
+    } catch (e: any) {
+      setErr(e?.message ?? "Couldn't confirm your choice. Please try again.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const home = <Button onPress={() => router.replace("/")}>Open my dashboard</Button>;
 
   if (!token) return <DeadEnd msg="This link doesn't look right. Check that you copied the whole link from your email, or open your dashboard to see your estimates." retry={false} alt={home} />;
+  // Above every load branch: right after a pick the request is no longer pending,
+  // and a refresh would otherwise flip straight to "already chosen" (web) or, on a
+  // failed re-read, to "couldn't load", hiding a pick that has already happened.
+  if (picked) {
+    return (
+      <Screen>
+        <ScreenHeader title="Choose your pro" />
+        <Card style={{ marginTop: t.s6 }}>
+          <Row icon="check-circle" tone="good" title={who(picked) + " is booked in"}
+            sub="We've let them know. They'll message you to confirm a time, and you'll get an email as soon as they do. Nothing is charged until you approve the visit and the price." />
+        </Card>
+        <View style={{ marginTop: t.s4 }}>{home}</View>
+      </Screen>
+    );
+  }
   const cur = loaded && loaded.key === key ? loaded.out : null;
   if (!cur || cur.kind === "owner") {
     return (
@@ -123,7 +157,7 @@ export function PickScreen() {
         {d.client_first ? `${d.client_first}, pick your pro` : "Pick your pro"}
       </Txt>
       <Txt size={0.92} lh={1.5} color={rgba(t.muted, 0.8)} style={{ marginTop: t.s2 }}>
-        {bids.length > 0 ? "Choosing opens the Freddy Fix It website, where you confirm it with one tap." : "Your request is live with Calgary pros right now."}
+        {bids.length > 0 ? "One tap and they're booked in. No password, no forms." : "Your request is live with Calgary pros right now."}
       </Txt>
 
       <Group label="Your request">
@@ -132,6 +166,12 @@ export function PickScreen() {
           {d.description ? <Txt size={0.88} lh={1.5} color={rgba(t.muted, 0.8)}>{d.description}</Txt> : null}
         </Card>
       </Group>
+
+      {err ? (
+        <Card style={{ marginTop: t.s4 }}>
+          <Row icon="alert-triangle" tone="warn" title={err} />
+        </Card>
+      ) : null}
 
       {bids.length === 0 ? (
         <Card style={{ marginTop: t.s4 }}>
@@ -169,8 +209,9 @@ export function PickScreen() {
                     </View>
                   </View>
                   <View style={{ marginTop: t.s4 }}>
-                    <Button full accessibilityLabel={`Choose ${name} on the website`}
-                      onPress={() => openOnWeb(`/pick/${encodeURIComponent(token)}?bid=${encodeURIComponent(String(b.bid_id))}`)}>
+                    {/* One orange call to action per screen: only when there is one choice. */}
+                    <Button full variant={bids.length === 1 ? "primary" : "secondary"} accessibilityLabel={`Choose ${name}`}
+                      loading={busy === String(b.bid_id)} disabled={busy !== null} onPress={() => void pick(b)}>
                       {`Choose ${name}`}
                     </Button>
                   </View>

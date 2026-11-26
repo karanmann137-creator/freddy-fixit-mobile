@@ -15,13 +15,13 @@ import { peekReferralError } from "@/lib/referralCode";
 import { tidyDescription } from "@/lib/jobText";
 import { useClientData } from "./data";
 import {
-  attentionRows, formatWhen, jobNeedsWeb, passFor, pickActiveRequest, requestDot,
+  attentionRows, formatWhen, isPastRequest, jobNeedsWeb, passFor, pickActiveRequest, requestDot,
   type AttnRow, type JobView, type Read,
 } from "./rules";
 import { openOnWeb } from "./web";
 import { useUnreadCount } from "./NotificationsScreen";
 
-const STATUS: Record<string, { label: string; tone: "accent" | "good" | "warn" | "danger" | "neutral" }> = {
+export const STATUS: Record<string, { label: string; tone: "accent" | "good" | "warn" | "danger" | "neutral" }> = {
   pending: { label: "Out to pros", tone: "neutral" },
   matched: { label: "Pro picked", tone: "neutral" },
   completed: { label: "Done", tone: "good" },
@@ -106,9 +106,11 @@ export function RequestsScreen() {
   // (say a referral notice) turns the pass to YOUR TURN but can't manage the job (CodeRabbit #6).
   const jobOnWeb = !!jv?.job && jobNeedsWeb(jv.job);
 
+  const openRequest = (id: string) => router.push({ pathname: "/client/request/[id]", params: { id } });
   const act = (r: AttnRow) => {
-    // Estimates (4.5) and adding a photo to a posted request are next in Phase 4;
-    // until then the website does them, and works from any device.
+    // Estimates open the request screen (4.5). Adding a photo to a posted request
+    // is still the website's, which works from any device.
+    if (r.action === "estimates" && req) return openRequest(req.id);
     if (r.action === "estimates" || r.action === "photo") return openOnWeb("/client-dashboard");
     if (r.action === "settings") return router.push("/client/account");
   };
@@ -153,7 +155,7 @@ export function RequestsScreen() {
             <Row icon="clipboard-list" tone="neutral" title="No requests yet" sub="Tell us what needs fixing. Local pros send you estimates, and you pick." />
           </Card>
         ) : (
-          <RequestCard req={req} job={job} bids={bids} onRetry={retryActive} />
+          <RequestCard req={req} job={job} bids={bids} onRetry={retryActive} onOpen={() => openRequest(req.id)} />
         )}
 
         {/* Every "ON THE WEBSITE" pass gets a way there: a live job, or a request
@@ -181,14 +183,16 @@ export function RequestsScreen() {
   );
 }
 
-function RequestCard({ req, job, bids, onRetry }: { req: any; job: Read<JobView>; bids: Read<number>; onRetry: () => void }) {
+function RequestCard({ req, job, bids, onRetry, onOpen }: { req: any; job: Read<JobView>; bids: Read<number>; onRetry: () => void; onOpen: () => void }) {
   const { t } = useTheme();
   const st = STATUS[req.status] ?? { label: String(req.status ?? "—"), tone: "neutral" as const };
   const failed = job.kind === "error" || (req.status === "pending" && bids.kind === "error");
+  // The request screen (estimates, pick, delete) is for a request still in play.
+  const open = !isPastRequest(req) ? onOpen : undefined;
   return (
     <Group label="Request" action={<Pill tone={st.tone}>{st.label}</Pill>}>
       <Card>
-        <Row icon="wrench" tone="neutral" title={req.service_needed ?? "Request"} sub={req.preferred_schedule ?? undefined} />
+        <Row icon="wrench" tone="neutral" title={req.service_needed ?? "Request"} sub={req.preferred_schedule ?? undefined} chevron={!!open} onPress={open} />
         {req.location ? <Row icon="map-pin" tone="neutral" title={req.location} /> : null}
         {/* Display-time tidy only (web JobDescription): spacing/case/full stops, never a reworded word. */}
         {tidyDescription(req.job_description).length > 0 ? (
@@ -198,7 +202,7 @@ function RequestCard({ req, job, bids, onRetry }: { req: any; job: Read<JobView>
         ) : null}
         {req.status === "pending" && bids.kind === "ok" ? (
           <Row icon="user-check" tone="neutral" title={bids.value === 0 ? "No estimates yet" : bids.value + (bids.value === 1 ? " estimate" : " estimates") + " in"}
-            sub={bids.value === 0 ? "Estimates usually land within a day." : undefined} />
+            sub={bids.value === 0 ? "Estimates usually land within a day." : "See them and pick a pro."} chevron onPress={onOpen} />
         ) : null}
         {failed ? (
           <Row icon="alert-triangle" tone="warn" title="We couldn't load everything for this request." sub="Tap to try again." onPress={onRetry} />
