@@ -4,12 +4,16 @@ import React from "react";
 import { Stack } from "expo-router";
 import { useTheme } from "@/kit";
 import { ClientDataProvider } from "@/features/client/data";
+import { ClientChatInbox } from "@/features/chat/inbox";
 
 export default function ClientLayout() {
   const { t } = useTheme();
   return (
     <ClientDataProvider>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }} />
+      {/* One inbox per area: the Messages tab, its tab-bar badge and every chat screen read it. */}
+      <ClientChatInbox>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }} />
+      </ClientChatInbox>
     </ClientDataProvider>
   );
 }
