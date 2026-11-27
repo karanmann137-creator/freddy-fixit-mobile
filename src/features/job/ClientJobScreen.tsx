@@ -162,7 +162,7 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
   }, [focusParam, focusTo]);
 
   const owed = shownBalance(job, data.fee);
-  // A price-change PREVIEW (synced priceChange.ts) reads the server's rate and waiver; the charge itself is adjust-payment's.
+  // The fee LABEL beside a total (a rate, not a sum): get_job_fee's before the charge.
   const pcRate = data.fee ? data.fee.rate : data.feeRate;
   const pcWaived = data.fee ? data.fee.waived : data.waived;
   const refresh = async () => { await reload(); };
@@ -465,7 +465,7 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
           ) : (
             <View style={{ marginTop: t.s4 }}>
               {job.price_change_pending ? (
-                <PriceChangePanel job={job} feeRate={pcRate} waived={pcWaived} busy={busy === "price"} primary={isPrimary("price")}
+                <PriceChangePanel job={job} busy={busy === "price"} primary={isPrimary("price")}
                   onApprove={(payNow) => void approvePrice(payNow)} onDecline={() => void declinePrice()} />
               ) : null}
 
@@ -479,7 +479,7 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
                 <Anchor id="sched">
                   <View style={{ marginTop: t.s4 }}>
                     {job.price_hike_from != null && Number(job.amount ?? 0) > Number(job.price_hike_from) + 0.005 ? (
-                      <PriceHikePanel job={job} feeRate={pcRate} waived={pcWaived} busy={busy === "sched"} onDeclineReopen={() => void declineReopen()} />
+                      <PriceHikePanel job={job} busy={busy === "sched"} onDeclineReopen={() => void declineReopen()} />
                     ) : null}
                     <Card style={{ padding: t.s4 }}>
                       <Txt variant="bodyBold" size={0.95}>Your contractor proposed a time & price</Txt>

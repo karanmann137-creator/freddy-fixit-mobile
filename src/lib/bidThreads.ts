@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@fd39b99:src/lib/bidThreads.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@09b0a25:src/lib/bidThreads.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // Bid-stage conversations — the pre-hire thread between a client and ONE pro
 // who bid, before any job exists.

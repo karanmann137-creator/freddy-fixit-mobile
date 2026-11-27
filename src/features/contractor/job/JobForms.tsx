@@ -6,19 +6,17 @@
 //     pending banner and withdraw_price_change.
 //
 // MONEY GUARDS TOUCHED: none. Every amount the pro types goes to an RPC that
-// validates it; the totals shown are web's own display arithmetic from the synced
-// priceChange.ts (one module, so the pro and the client read the same cents), the
-// fee rate from platformRates.getFeeRate (web falls back to a literal 0.03; the
-// app shows no fee numbers until a rate is known instead), the commission from
-// getCommissionRate. Nothing here computes a charge.
-import React, { useEffect, useState } from "react";
+// validates it; every total and payout shown is the server's price_preview
+// (features/job/pricePreview.ts, PLAN §0), the same figures the client's panel
+// reads. A preview that failed shows no number. Nothing here computes money.
+import React, { useState } from "react";
 import { View } from "react-native";
 import { Button, Field, Ic, Txt, askConfirm, notify, rgba, ui, useTheme } from "@/kit";
 import { supabase } from "@/lib/supabase";
 import { canWithdraw } from "@/lib/jobRules";
 import { jobFullyFunded } from "@/lib/jobFunding";
-import { pcMoney, pcRateLabel, priceChangeMath } from "@/lib/priceChange";
-import { getCommissionRate, getFeeRate } from "@/lib/platformRates";
+import { pcMoney, pcRateLabel } from "@/lib/priceChange";
+import { previewStamp, usePricePreview } from "@/features/job/pricePreview";
 import type { ServicePrice } from "@/lib/servicePricing";
 import { LinkButton } from "@/features/request/pieces";
 import { QuoteBreakdown } from "../OpenJobScreen";
@@ -203,9 +201,12 @@ export function PriceChange({ job, busy, run, reload, minCallout, price, prefill
   const { t } = useTheme();
   const [open, setOpen] = useState(false);
   const [rf, setRf] = useState<RQ>(emptyRq);
-  const [feeRate, setFeeRate] = useState<number | null>(null);
-  const [commission, setCommission] = useState<number | null>(null);
-  useEffect(() => { void getFeeRate().then((r) => { if (r.ok) setFeeRate(r.rate); }); void getCommissionRate().then((r) => { if (r.ok) setCommission(r.rate); }); }, []);
+  // Every figure below is the server's price_preview (PLAN §0): the pending change
+  // in its stored shape, and the price being typed, debounced. No local fee or payout math.
+  const pending = job.price_change_pending;
+  const tot = quoteTotal(rf);
+  const stored = usePricePreview(job.id, null, previewStamp(job), !!pending);
+  const typed = usePricePreview(job.id, tot != null && tot > 0 ? tot : null, previewStamp(job), !pending && open && tot != null && tot > 0);
   // A new bill-from-timer prefill opens the form with it (React's "adjust state on a prop change" pattern).
   const [seenBill, setSeenBill] = useState<number | null>(null);
   if (prefill && prefill.n !== seenBill) {
@@ -217,10 +218,6 @@ export function PriceChange({ job, busy, run, reload, minCallout, price, prefill
   if (job.payment_status === "released") return null;
   if (job.is_milestone) return null; // priced per stage: the whole-job RPC rejects these (web)
   const patch = (p: Partial<RQ>) => setRf((x) => ({ ...x, ...p }));
-  // A rate we couldn't read is not a rate: without the client's agreed fee on the
-  // job, no fee numbers are shown (web would assume 3%).
-  const rateKnown = (job.client_fee != null && Number(job.amount) > 0) || feeRate != null;
-  const payoutOf = (n: number) => (commission == null ? null : Math.round(n * (1 - commission) * 100) / 100);
 
   const send = () => run(async () => {
     if (!rf.reason.trim()) { notify("Add a short reason so the client understands the change.", "danger"); return; }
@@ -245,10 +242,9 @@ export function PriceChange({ job, busy, run, reload, minCallout, price, prefill
     await reload();
   });
 
-  const pending = job.price_change_pending;
   if (pending) {
-    const pc = rateKnown ? priceChangeMath({ ...job, payment_status: "held", price_change_pending: pending }, feeRate ?? Number.NaN) : null;
-    const payout = pc ? payoutOf(pc.newPrice) : null;
+    const pc = stored.pc;
+    const payout = pc ? pc.newPayout : null;
     return (
       <Anchor id={A_PRICE}>
         <Panel tone="warn">
@@ -281,9 +277,8 @@ export function PriceChange({ job, busy, run, reload, minCallout, price, prefill
       </Anchor>
     );
   }
-  const tot = quoteTotal(rf);
-  const pv = tot != null && tot > 0 && rateKnown ? priceChangeMath({ ...job, payment_status: "held", price_change_pending: { amount: tot } }, feeRate ?? Number.NaN) : null;
-  const pvPayout = pv ? payoutOf(pv.newPrice) : null;
+  const pv = typed.pc;
+  const pvPayout = pv ? pv.newPayout : null;
   return (
     <Anchor id={A_PRICE}>
       <View style={{ gap: t.s3, padding: t.s1 }}>

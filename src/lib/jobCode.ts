@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@fd39b99:src/lib/jobCode.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@09b0a25:src/lib/jobCode.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // A short, human-readable ID for a job that clients can quote when filing a
 // claim or contacting support. Derived deterministically from the job's UUID —

@@ -38,6 +38,8 @@ const LINE_RULES = [ // run on the comment-blanked text, line by line
     test: (l) => /\b(useConversations|useBidThreads)\(/.test(l), skip: (rel) => rel === "src/features/chat/inbox.tsx" },
   { rule: "PLAN §0: show get_job_fee / jobFunding figures (features/job/reads.ts shownTotal, shownBalance), never estimateJobTotal / estimateJobBalance",
     test: (l) => /\bestimateJob(Total|Balance)\(/.test(l) },
+  { rule: "PLAN §0 (owner 2026-11-27): price previews come from price_preview (features/job/pricePreview.ts); no priceChangeMath and no local commission maths in the app",
+    test: (l) => /\bpriceChangeMath\(|\(1\s*-\s*commission\)/.test(l) },
   { rule: "A realtime channel needs a fresh topic (+ nextTopic()): supabase-js hands back a channel still leaving, which silently receives nothing",
     test: (l) => /supabase\.channel\(/.test(l) && !/nextTopic\(\)/.test(l) },
 ];
@@ -386,7 +388,10 @@ const MOUNTS = [
   { file: "src/features/contractor/job/JobPhotos.tsx", needle: "evidence: true", min: 1, why: "job photos are evidence: only sexual/hate block (web shouldBlock(scan, { evidence: true }))" },
   { file: "src/features/contractor/job/JobPhotos.tsx", needle: "save_job_photo", min: 1, why: "an uploaded photo is not on the job until save_job_photo records it; without it Mark complete stays blocked" },
   { file: "src/features/contractor/job/JobPhotos.tsx", needle: "failed[p]", min: 1, why: "a saved photo whose link failed says so, never 'not uploaded yet'" },
-  { file: "src/features/contractor/job/JobTools.tsx", needle: "getCommissionRate", min: 1, why: "the expenses payout uses platformRates (web hard-codes 93 there); no rate means no payout figure" },
+  { file: "src/features/contractor/job/JobTools.tsx", needle: "est.pc ? est.pc.newPayout", min: 1, why: "the uncharged-job payout estimate is price_preview's (PLAN §0), never a local commission sum" },
+  { file: "src/features/job/pricePreview.ts", needle: 'rpc("price_preview"', min: 1, why: "every price preview figure (both roles) comes from the server; without it the panels show nothing or drift" },
+  { file: "src/features/job/PricePanels.tsx", needle: "usePricePreview(job?.id, null, previewStamp(job))", min: 2, why: "the pending-change and hike panels read the server preview (PLAN §0)" },
+  { file: "src/features/contractor/job/JobForms.tsx", needle: ".newPayout : null", min: 2, why: "the pro's 'your payout' lines are price_preview's new_payout, never n * (1 - commission)" },
 ];
 
 // ORDER: the attention rows are capped at 3 (AttentionCard max), so the money-gating

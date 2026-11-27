@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@fd39b99:src/lib/servicePricing.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@09b0a25:src/lib/servicePricing.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 import { useEffect, useState } from "react";
 import { supabase } from "./supabase";

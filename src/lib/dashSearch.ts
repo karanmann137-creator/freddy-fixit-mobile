@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@fd39b99:src/lib/dashSearch.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@09b0a25:src/lib/dashSearch.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // Dashboard search — a CLIENT-SIDE filter over rows the dashboard has already
 // loaded. There is deliberately no query, no RPC and no new RLS surface: every

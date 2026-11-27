@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@fd39b99:src/lib/respTime.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@09b0a25:src/lib/respTime.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // Speed-to-lead helpers — format a contractor's median first-response time
 // (from the contractor_response_stats RPC, in minutes).

@@ -1,23 +1,19 @@
 // The price panels of web ClientDashboard's job card: the pending price change on
 // a held job (anchor "price"), the pre-work hike (anchor "hike") and the quote
-// breakdown. Every figure comes from the synced priceChange.ts, the SAME module
-// the price_change email and the signed agreement's clause render from, so the
-// app, the inbox and the website cannot disagree about what approving costs.
+// breakdown. Every figure comes from the server's price_preview (pricePreview.ts),
+// which mirrors the charge path, so the app never does fee arithmetic (PLAN §0).
+// A preview still loading says so; a failed one shows no figure and blocks Approve.
 //
 // MONEY: display only; the change is applied by adjust-payment / decline_price_change
 // / approve_job_schedule server-side. Touches none of the four payout guards.
 import React from "react";
 import { View } from "react-native";
 import { Button, Card, Ic, Txt, rgba, ui, useTheme } from "@/kit";
-import { pcMoney, pcRateLabel, priceChangeMath, type PriceChange } from "@/lib/priceChange";
+import { pcMoney, pcRateLabel } from "@/lib/priceChange";
 import { jobFullyFunded } from "@/lib/jobFunding";
 import { Anchor } from "./anchors";
 
-/** priceChangeMath needs a fallback rate only for a job with no client_fee yet. Unknown → no figures (never a guessed fee). */
-export function priceMath(job: any, feeRate: number | null, waived: boolean): PriceChange | null {
-  if (feeRate == null && job?.client_fee == null && !waived) return null;
-  return priceChangeMath(job, feeRate ?? 0, waived);
-}
+import { previewStamp, usePricePreview } from "./pricePreview";
 
 function Line({ label, value, strong, color, top }: { label: string; value: string; strong?: boolean; color?: string; top?: boolean }) {
   const { t } = useTheme();
@@ -41,13 +37,13 @@ function Reason({ text }: { text: string }) {
 }
 
 /** Held job, pending change (web "THE PENDING PRICE CHANGE"). Four branches because adjust-payment behaves four ways. */
-export function PriceChangePanel({ job, feeRate, waived, busy, primary, onApprove, onDecline }: {
-  job: any; feeRate: number | null; waived: boolean; busy: boolean; primary: boolean;
+export function PriceChangePanel({ job, busy, primary, onApprove, onDecline }: {
+  job: any; busy: boolean; primary: boolean;
   /** `payNow`: approving opens a checkout for the difference (web's mode "topup"). */
   onApprove: (payNow: boolean) => void; onDecline: () => void;
 }) {
   const { t } = useTheme();
-  const pc = priceMath(job, feeRate, waived);
+  const { pc, failed } = usePricePreview(job?.id, null, previewStamp(job));
   const reason: string | null = job?.price_change_pending?.reason ?? null;
   const paidInFull = jobFullyFunded(job);
   const box = { marginTop: t.s4, paddingHorizontal: t.s4, paddingVertical: t.s2, borderRadius: t.r3, backgroundColor: rgba(t.fg, 0.035), borderWidth: t.hairW, borderColor: rgba(t.fg, 0.09) };
@@ -65,7 +61,9 @@ export function PriceChangePanel({ job, feeRate, waived, busy, primary, onApprov
           </View>
         </View>
         {reason ? <Reason text={reason} /> : null}
-        {!pc ? (
+        {!pc && !failed ? (
+          <Txt size={0.86} lh={1.6} color={rgba(t.muted, 0.7)} style={{ marginTop: t.s4 }}>Working out the new total…</Txt>
+        ) : !pc ? (
           <Txt size={0.86} lh={1.6} color={t.warn} style={{ marginTop: t.s4 }}>
             We couldn’t load the service fee just now, so we can’t show what approving would cost. Pull down to try again — you can still decline.
           </Txt>
@@ -118,9 +116,9 @@ export function PriceChangePanel({ job, feeRate, waived, busy, primary, onApprov
 }
 
 /** Unpaid job, price already raised (web PRE-WORK PRICE HIKE). Shown inside the schedule proposal. */
-export function PriceHikePanel({ job, feeRate, waived, busy, onDeclineReopen }: { job: any; feeRate: number | null; waived: boolean; busy: boolean; onDeclineReopen: () => void }) {
+export function PriceHikePanel({ job, busy, onDeclineReopen }: { job: any; busy: boolean; onDeclineReopen: () => void }) {
   const { t } = useTheme();
-  const hk = priceMath(job, feeRate, waived);
+  const { pc: hk, failed } = usePricePreview(job?.id, null, previewStamp(job));
   return (
     <Anchor id="hike">
       <Card style={{ padding: t.s4, marginBottom: t.s4, borderColor: rgba(t.dangerRgb, 0.4), backgroundColor: rgba(t.dangerRgb, 0.08) }}>
@@ -142,8 +140,10 @@ export function PriceHikePanel({ job, feeRate, waived, busy, onDeclineReopen }: 
               : <Line label="Service fee" value="Waived" color={t.success} />}
             <Line label="New total" value={pcMoney(hk.newTotal)} strong color={t.danger} top />
           </View>
-        ) : (
+        ) : failed ? (
           <Txt size={0.84} color={t.warn} style={{ marginTop: t.s4 }}>We couldn’t load the service fee just now, so the new total isn’t shown. Pull down to try again.</Txt>
+        ) : (
+          <Txt size={0.84} color={rgba(t.muted, 0.7)} style={{ marginTop: t.s4 }}>Working out the new total…</Txt>
         )}
         <Txt size={0.84} lh={1.7} color={rgba(t.muted, 0.8)} style={{ marginTop: t.s4 }}>
           You do not have to accept it. Approve the time and the new price below, or decline and let the other pros who bid win your job instead — you keep your request and their estimates, and you do not start over.

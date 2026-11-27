@@ -6,14 +6,14 @@
 // arithmetic (hours × the pro's own hourly rate, rounded to 15 min); the bill only
 // PREFILLS the price-change form, which the server validates. The expenses box's
 // payout figure is the stored `contractor_payout` when the job has been charged,
-// else the commission from platformRates — never web's hard-coded 93 (a web
-// inconsistency with its own "never hardcode a rate" rule; reported).
+// else the server's price_preview payout (PLAN §0) — never a local rate sum, and
+// never web's hard-coded 93 (a web inconsistency with its own rule; reported).
 import React, { useCallback, useEffect, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Button, Field, Ic, Txt, rgba, ui, useTheme } from "@/kit";
 import { supabase } from "@/lib/supabase";
 import { suggestedChecklist } from "@/lib/checklistTemplates";
-import { getCommissionRate } from "@/lib/platformRates";
+import { previewStamp, usePricePreview } from "@/features/job/pricePreview";
 import { LinkButton, Tick } from "@/features/request/pieces";
 import { moneyInput } from "../bid";
 import { PanelHead, defer } from "./parts";
@@ -192,7 +192,6 @@ export function JobExpenses({ job, userId, onError }: { job: any; userId: string
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
-  const [commission, setCommission] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase.from("job_expenses").select("*").eq("job_id", job.id).order("created_at", { ascending: false });
@@ -201,12 +200,12 @@ export function JobExpenses({ job, userId, onError }: { job: any; userId: string
     setItems((data ?? []) as Expense[]);
   }, [job.id]);
   useEffect(() => { defer(load); }, [load]);
-  useEffect(() => { void getCommissionRate().then((r) => { if (r.ok) setCommission(r.rate); }); }, []);
+  // Only asked for when there is no stored payout yet (an uncharged job with a price).
+  const est = usePricePreview(job.id, null, previewStamp(job), job.contractor_payout == null && Number(job.amount) > 0);
 
   const total = (items ?? []).reduce((s, e) => s + Number(e.amount || 0), 0);
-  // The stored payout always wins; the estimate needs a readable rate (web netPayout).
-  const payout = job.contractor_payout != null ? Number(job.contractor_payout)
-    : job.amount != null && Number(job.amount) > 0 && commission != null ? Math.round(Number(job.amount) * (1 - commission) * 100) / 100 : null;
+  // The stored payout always wins; else the server's estimate; a failed read shows none.
+  const payout = job.contractor_payout != null ? Number(job.contractor_payout) : est.pc ? est.pc.newPayout : null;
 
   const add = async () => {
     const amt = Number(amount);
