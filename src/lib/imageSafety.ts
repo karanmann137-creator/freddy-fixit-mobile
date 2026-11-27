@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@fd39b99:src/lib/imageSafety.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@bb07bd7:src/lib/imageSafety.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // imageSafety.ts — the browser half of the photo safety scan.
 //

@@ -2,9 +2,9 @@
 //
 // SERVER VALUES ONLY. total_earned is the contractors row; the week / month / year
 // figures and the trend are get_contractor_earnings_stats; a job's payout is its stored
-// contractor_payout, else an estimate from the commission rate, which is read ONLY via
-// src/lib/platformRates (never a literal here). If the rate can't be read, no estimate
-// is shown (web: a wrong payout is worse than a missing one).
+// contractor_payout, else the server's estimate (price_preview new_payout, PLAN §0).
+// The commission rate (src/lib/platformRates) only words the "your N% payout" line.
+// An estimate that can't be read is not shown (web: a wrong payout is worse than none).
 //
 // A failed read is "couldn't load" with a retry, never $0: the stats read (flagged by
 // the data provider), the logged-costs read and the response-time read each say so.
@@ -18,6 +18,7 @@ import {
   Button, Card, DeadEnd, Field, FormNote, Group, Pill, Row, Screen, ScreenHeader, SkRow, Txt, notify, rgba, ui, useDelayed, useTheme,
 } from "@/kit";
 import { supabase } from "@/lib/supabase";
+import { readPricePreview } from "@/features/job/pricePreview";
 import { getCommissionRate } from "@/lib/platformRates";
 import { respShort } from "@/lib/respTime";
 import { openOnWeb } from "@/features/client/web";
@@ -25,19 +26,25 @@ import { useContractorData } from "./data";
 import { jobStatusLabel } from "./rules";
 
 type Side<T> = { ok: true; value: T } | { ok: false };
-type Reads = { key: string; costs: Side<number>; resp: Side<number | null>; rate: Side<number> };
+type Reads = { key: string; costs: Side<number>; resp: Side<number | null>; est: Record<string, number | null>; rate: Side<number> };
 
-/** Logged job costs, own response time and the commission rate. Each can fail alone; never throws. */
-async function readExtras(): Promise<Omit<Reads, "key">> {
-  const [exp, resp, rate] = await Promise.all([
+/**
+ * Logged job costs, own response time, and the SERVER's payout estimate for each
+ * job not yet charged (price_preview new_payout, PLAN §0: no local commission sum).
+ * Each can fail alone (a failed estimate is null = unknown); never throws.
+ */
+async function readExtras(estIds: string[]): Promise<Omit<Reads, "key">> {
+  const [exp, resp, ests, rate] = await Promise.all([
     supabase.from("job_expenses").select("amount").then((r) => r, () => ({ data: null, error: true })),
     supabase.rpc("contractor_response_stats").then((r) => r, () => ({ data: null, error: true })),
+    Promise.all(estIds.map(async (id) => [id, (await readPricePreview(id, null))?.newPayout ?? null] as const)),
+    // The rate is read for the WORDING only ("your 93% payout"): no figure is built from it.
     getCommissionRate(),
   ]);
   const costs: Side<number> = (exp as any).error ? { ok: false } : { ok: true, value: ((exp as any).data ?? []).reduce((s: number, e: any) => s + Number(e.amount || 0), 0) };
   const r0 = (resp as any).error ? undefined : ((resp as any).data ?? [])[0];
   const respSide: Side<number | null> = (resp as any).error ? { ok: false } : { ok: true, value: r0 ? Number(r0.median_minutes) : null };
-  return { costs, resp: respSide, rate: rate.ok ? { ok: true, value: rate.rate } : { ok: false } };
+  return { costs, resp: respSide, est: Object.fromEntries(ests), rate: rate.ok ? { ok: true, value: rate.rate } : { ok: false } };
 }
 
 const usd0 = (n: unknown) => "$" + Number(n || 0).toFixed(0);
@@ -65,14 +72,20 @@ export function EarningsScreen() {
   const [savingGoal, setSavingGoal] = useState(false);
 
   const uid = state.kind === "ok" ? state.data.userId : null;
-  const key = `${uid}|${nonce}`;
-  // Reads keyed on the signed-in pro (and a retry counter): a result only shows under the key it was read for.
+  // Jobs priced but not charged yet: the ones whose payout only the server can estimate.
+  const estKey = state.kind === "ok"
+    // Live jobs only: a finished job has its stored payout, and one call per old job on every pull is waste (gate review 3).
+    ? state.data.jobs.filter((j) => j.contractor_payout == null && Number(j.amount) > 0 && ["assigned", "scheduled", "in_progress", "pending_confirmation"].includes(j.status)).map((j) => j.id + ":" + j.amount).join(",")
+    : "";
+  const key = `${uid}|${nonce}|${estKey}`;
+  // Reads keyed on the signed-in pro, the retry counter and the jobs to estimate: a result only shows under the key it was read for.
   useEffect(() => {
     if (!uid) return;
     let stale = false;
-    void readExtras().then((r) => { if (!stale) setReads({ key, ...r }); });
+    const ids = estKey ? estKey.split(",").map((x) => x.split(":")[0]) : [];
+    void readExtras(ids).then((r) => { if (!stale) setReads({ key, ...r }); });
     return () => { stale = true; };
-  }, [uid, key]);
+  }, [uid, key, estKey]);
 
   if (state.kind === "error") return <DeadEnd msg="We couldn't load your earnings. Check your connection, then try again." onRetry={() => void reload()} />;
   if (state.kind === "loading") {
@@ -91,12 +104,12 @@ export function EarningsScreen() {
   const earn = d.earnStats;
   const totalEarned = Number(c?.total_earned ?? 0);
 
-  // Web netPayout: the stored contractor_payout always wins; else an estimate from the rate; else unknown.
+  // Web netPayout: the stored contractor_payout always wins; else the server's
+  // estimate (price_preview); else unknown, never a confident $0.00 (CodeRabbit #7).
   const netPayout = (job: any): number | null => {
     if (job?.contractor_payout != null) return Number(job.contractor_payout);
-    // No amount means no estimate: unknown, never a confident $0.00 (CodeRabbit #7).
-    if (rate == null || job?.amount == null) return null;
-    return Math.round(Number(job?.amount ?? 0) * (1 - rate) * 100) / 100;
+    if (job?.amount == null) return null;
+    return extras?.est[job.id] ?? null;
   };
 
   const awaitingJobs = d.jobs.filter((j) => j.status === "pending_confirmation" || j.status === "scheduled" || j.status === "in_progress");
@@ -132,8 +145,9 @@ export function EarningsScreen() {
     finally { setSavingGoal(false); }
   };
 
-  const ratePct = rate != null ? Math.round((1 - rate) * 100) : null;
+  // Wording only ("your 93% payout after the 7% fee"): percentages for a sentence, no money figure.
   const feePct = rate != null ? Math.round(rate * 100) : null;
+  const ratePct = feePct != null ? 100 - feePct : null;
   const costs = extras?.costs.ok ? extras.costs.value : null;
 
   return (
@@ -223,8 +237,8 @@ export function EarningsScreen() {
           </Card>
         </Group>
       ) : null}
-      {extras && !extras.rate.ok && awaitingJobs.length > 0 ? (
-        <FormNote>We couldn&apos;t load the platform rate just now, so payout estimates aren&apos;t shown. Pull down to try again.</FormNote>
+      {extras && awaitingUnknown ? (
+        <FormNote>We couldn&apos;t load your payout estimates just now, so they aren&apos;t shown. Pull down to try again.</FormNote>
       ) : null}
 
       <Group label="PAYOUTS">
@@ -255,7 +269,7 @@ export function EarningsScreen() {
             const detail = new Date(j.created_at).toLocaleDateString("en-CA") + (j.amount ? (net != null ? " · " + usd0(j.amount) + " estimate" : "") : " · price TBD");
             return (
               <Row key={j.id} icon="briefcase" tone="neutral" title={j.request?.service_needed ?? "Job"} sub={detail}
-                amount={net != null ? usd2(net) : j.amount ? usd0(j.amount) : undefined}
+                amount={net != null ? usd2(net) : undefined}
                 right={<Pill tone={histTone(j.status)}>{jobStatusLabel(j)}</Pill>} />
             );
           })}

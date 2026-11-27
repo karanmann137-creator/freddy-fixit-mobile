@@ -3,9 +3,9 @@
 //
 // Every read here has three outcomes. A failed read renders "couldn't load" with a
 // retry, never a confident zero (web: `jobLoadFailed`, `pickBid` re-opening it).
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import {
   AttentionCard, Button, Card, DeadEnd, Group, Hero, HeroSub, Ic, IconButton, JobSwitcher, Pass, PassMeta, PassMetaItem, PassTop,
   Pill, Row, Screen, SkRow, StateLine, Txt, rgba, useDelayed, useTheme,
@@ -15,13 +15,16 @@ import { peekReferralError } from "@/lib/referralCode";
 import { tidyDescription } from "@/lib/jobText";
 import { useClientData } from "./data";
 import {
-  attentionRows, formatWhen, jobNeedsWeb, passFor, pickActiveRequest, requestDot,
+  attentionRows, formatWhen, isPastRequest, jobOnWebOnly, passFor, pickActiveRequest, requestDot,
   type AttnRow, type JobView, type Read,
 } from "./rules";
-import { openOnWeb } from "./web";
+import { openOnWeb, webJobPath } from "./web";
+import { readJobExtras } from "@/features/job/reads";
+import { useReleaseNote } from "@/features/job/releaseNotes";
 import { useUnreadCount } from "./NotificationsScreen";
+import { useChatInbox } from "@/features/chat/inbox";
 
-const STATUS: Record<string, { label: string; tone: "accent" | "good" | "warn" | "danger" | "neutral" }> = {
+export const STATUS: Record<string, { label: string; tone: "accent" | "good" | "warn" | "danger" | "neutral" }> = {
   pending: { label: "Out to pros", tone: "neutral" },
   matched: { label: "Pro picked", tone: "neutral" },
   completed: { label: "Done", tone: "good" },
@@ -32,7 +35,8 @@ type ActiveReads = { job: Read<JobView>; bids: Read<number> };
 
 /** One request's job, its pro's first name and its open-estimate count. Never throws. */
 async function readActive(reqId: string | null, reqStatus: string | null, assignee: string | null): Promise<ActiveReads> {
-  if (!reqId) return { job: { kind: "ok", value: { job: null, proName: null } }, bids: { kind: "ok", value: 0 } };
+  const none = { gate: { kind: "ok" as const, signed: false, status: null }, repostBlock: undefined, fee: null };
+  if (!reqId) return { job: { kind: "ok", value: { job: null, proName: null, extras: none } }, bids: { kind: "ok", value: 0 } };
   try {
     const [j, pro, b] = await Promise.all([
       supabase.from("jobs").select("*").eq("request_id", reqId).neq("status", "cancelled")
@@ -45,8 +49,11 @@ async function readActive(reqId: string | null, reqStatus: string | null, assign
     ]);
     // The pro's name is decoration: a failed read drops the name, never the job.
     const proName = !pro.error && pro.data ? ((pro.data as { first_name?: string | null }).first_name ?? null) : null;
+    // The agreement gate and the re-post answer arrive WITH the job, so no attention
+    // row is derived from a job whose gate hasn't been read (it would flash "sign it").
+    const extras = !j.error && j.data ? await readJobExtras(j.data) : none;
     return {
-      job: j.error ? { kind: "error" } : { kind: "ok", value: { job: j.data ?? null, proName } },
+      job: j.error ? { kind: "error" } : { kind: "ok", value: { job: j.data ?? null, proName, extras } },
       bids: b.error ? { kind: "error" } : { kind: "ok", value: (b as { count?: number | null }).count ?? 0 },
     };
   } catch {
@@ -57,12 +64,14 @@ async function readActive(reqId: string | null, reqStatus: string | null, assign
 export function RequestsScreen() {
   const { t } = useTheme();
   const { state, reload } = useClientData();
+  const chat = useChatInbox();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [active, setActive] = useState<(ActiveReads & { key: string }) | null>(null);
   const [nonce, setNonce] = useState(0);
   const [refError, setRefError] = useState("");
   const showSkeleton = useDelayed();
   const unread = useUnreadCount(state.kind === "ok" ? state.data.userId : null);
+  // platform_fee_rate(), for the balance figure on an uncharged job only. Unknown = no figure, never a guess.
 
   const data = state.kind === "ok" ? state.data : null;
   const req = data ? pickActiveRequest(data.requests, selectedId) : null;
@@ -74,19 +83,24 @@ export function RequestsScreen() {
   // result is only shown under the key it was read for, so switching requests
   // can't paint one request's job onto another, and a new key reads as "loading".
   const key = `${reqId}|${reqStatus}|${assignee}|${nonce}`;
+  // Coming back to the tab (from the job screen, where the client may have signed or
+  // confirmed) re-reads under the SAME key: fresh rows, no "loading" flash.
+  const [focusTick, setFocusTick] = useState(0);
+  useFocusEffect(useCallback(() => { setFocusTick((n) => n + 1); }, []));
   useEffect(() => {
     let stale = false;
     void readActive(reqId, reqStatus, assignee).then((r) => { if (!stale) setActive({ key, ...r }); });
     return () => { stale = true; };
-  }, [key, reqId, reqStatus, assignee]);
+  }, [key, reqId, reqStatus, assignee, focusTick]);
   const job: Read<JobView> = active?.key === key ? active.job : { kind: "loading" };
   const bids: Read<number> = active?.key === key ? active.bids : { kind: "loading" };
   const retryActive = () => setNonce((n) => n + 1);
+  const releaseNote = useReleaseNote(job.kind === "ok" ? job.value.job?.id : null);
 
   useEffect(() => { void peekReferralError().then(setRefError).catch(() => setRefError("")); }, [data]);
 
   // A pull re-reads everything: the lists, and (via the retry counter) the job.
-  const refreshAll = async () => { setNonce((n) => n + 1); await reload(); };
+  const refreshAll = async () => { setNonce((n) => n + 1); await Promise.all([reload(), chat.refresh()]); };
 
   if (state.kind === "error") {
     return <DeadEnd msg="We couldn't load your requests. Check your connection, then try again." onRetry={() => void reload()} />;
@@ -99,18 +113,22 @@ export function RequestsScreen() {
     );
   }
 
-  const rows = attentionRows({ req, job, bids, refError });
+  const rows = attentionRows({ req, job, bids, refError, releaseNote, meId: data.userId, inbox: chat.rows });
   const pass = passFor({ req, job, bids, rows });
   const jv = job.kind === "ok" ? job.value : null;
-  // The job handoff shows for every live job, whatever the pass says: an attention row
-  // (say a referral notice) turns the pass to YOUR TURN but can't manage the job (CodeRabbit #6).
-  const jobOnWeb = !!jv?.job && jobNeedsWeb(jv.job);
+  // Only a milestone job is still handed to the website (stage payments, step 4.9).
+  const jobOnWeb = !!jv?.job && jobOnWebOnly(jv.job);
 
+  const openRequest = (id: string) => router.push({ pathname: "/client/request/[id]", params: { id } });
   const act = (r: AttnRow) => {
-    // Estimates (4.5) and adding a photo to a posted request are next in Phase 4;
-    // until then the website does them, and works from any device.
+    // Estimates open the request screen (4.5). Adding a photo to a posted request
+    // is still the website's, which works from any device.
+    if (r.action === "estimates" && req) return openRequest(req.id);
     if (r.action === "estimates" || r.action === "photo") return openOnWeb("/client-dashboard");
     if (r.action === "settings") return router.push("/client/account");
+    if (r.action === "chat" && r.href) return router.push(r.href);
+    // A job-stage row lands on the job screen AT the control it names.
+    if (r.action === "job" && r.jobId) return router.push({ pathname: "/client/job/[id]", params: { id: r.jobId, focus: r.anchor ?? "" } });
   };
 
   return (
@@ -153,21 +171,29 @@ export function RequestsScreen() {
             <Row icon="clipboard-list" tone="neutral" title="No requests yet" sub="Tell us what needs fixing. Local pros send you estimates, and you pick." />
           </Card>
         ) : (
-          <RequestCard req={req} job={job} bids={bids} onRetry={retryActive} />
+          <RequestCard req={req} job={job} bids={bids} onRetry={retryActive} onOpen={() => openRequest(req.id)} />
         )}
 
-        {/* Every "ON THE WEBSITE" pass gets a way there: a live job, or a request
-            stage the app can't read yet (review G4a #3). */}
-        {jobOnWeb || pass.label === "ON THE WEBSITE" ? (
+        {/* The job itself: every live job opens the job screen; a milestone job (4.9) and a
+            request stage the app can't read yet still go to the website (review G4a #3). */}
+        {jv?.job && !jobOnWeb ? (
+          <Group label="This job">
+            <Card>
+              <Row icon="briefcase" tone="neutral" title={(jv.proName || "Your pro") + (jv.job.scheduled_at ? " · " + formatWhen(jv.job.scheduled_at) : "")}
+                sub="Agreement, payment, photos and progress" chevron
+                onPress={() => router.push({ pathname: "/client/job/[id]", params: { id: jv.job.id } })} />
+            </Card>
+          </Group>
+        ) : jobOnWeb || pass.label === "ON THE WEBSITE" ? (
           <Group label={jobOnWeb ? "This job" : "This request"}>
             <Card>
               {jv?.job && jobOnWeb ? (
                 <Row icon="briefcase" tone="neutral" title={(jv.proName || "Your pro") + (jv.job.scheduled_at ? " · " + formatWhen(jv.job.scheduled_at) : "")}
-                  sub="Open the job on freddyfixit.ca to sign, pay, message or confirm. Job screens come to the app next." chevron
-                  onPress={() => openOnWeb("/client-dashboard")} />
+                  sub="This job is paid in stages: open it on freddyfixit.ca to fund, approve or message. Stage payments come to the app next." chevron
+                  onPress={() => void openOnWeb(webJobPath(jv.job.id))} />
               ) : (
                 <Row icon="briefcase" tone="neutral" title="Open this request on freddyfixit.ca" sub="The website shows every stage." chevron
-                  onPress={() => openOnWeb("/client-dashboard")} />
+                  onPress={() => void openOnWeb("/client-dashboard")} />
               )}
             </Card>
           </Group>
@@ -181,14 +207,16 @@ export function RequestsScreen() {
   );
 }
 
-function RequestCard({ req, job, bids, onRetry }: { req: any; job: Read<JobView>; bids: Read<number>; onRetry: () => void }) {
+function RequestCard({ req, job, bids, onRetry, onOpen }: { req: any; job: Read<JobView>; bids: Read<number>; onRetry: () => void; onOpen: () => void }) {
   const { t } = useTheme();
   const st = STATUS[req.status] ?? { label: String(req.status ?? "—"), tone: "neutral" as const };
   const failed = job.kind === "error" || (req.status === "pending" && bids.kind === "error");
+  // The request screen (estimates, pick, delete) is for a request still in play.
+  const open = !isPastRequest(req) ? onOpen : undefined;
   return (
     <Group label="Request" action={<Pill tone={st.tone}>{st.label}</Pill>}>
       <Card>
-        <Row icon="wrench" tone="neutral" title={req.service_needed ?? "Request"} sub={req.preferred_schedule ?? undefined} />
+        <Row icon="wrench" tone="neutral" title={req.service_needed ?? "Request"} sub={req.preferred_schedule ?? undefined} chevron={!!open} onPress={open} />
         {req.location ? <Row icon="map-pin" tone="neutral" title={req.location} /> : null}
         {/* Display-time tidy only (web JobDescription): spacing/case/full stops, never a reworded word. */}
         {tidyDescription(req.job_description).length > 0 ? (
@@ -198,7 +226,7 @@ function RequestCard({ req, job, bids, onRetry }: { req: any; job: Read<JobView>
         ) : null}
         {req.status === "pending" && bids.kind === "ok" ? (
           <Row icon="user-check" tone="neutral" title={bids.value === 0 ? "No estimates yet" : bids.value + (bids.value === 1 ? " estimate" : " estimates") + " in"}
-            sub={bids.value === 0 ? "Estimates usually land within a day." : undefined} />
+            sub={bids.value === 0 ? "Estimates usually land within a day." : "See them and pick a pro."} chevron onPress={onOpen} />
         ) : null}
         {failed ? (
           <Row icon="alert-triangle" tone="warn" title="We couldn't load everything for this request." sub="Tap to try again." onPress={onRetry} />

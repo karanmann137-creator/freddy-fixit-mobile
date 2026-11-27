@@ -5,6 +5,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { fonts, Ic, rgba, useTheme, type IconName } from "@/kit";
+import { unreadBadge, useChatInbox } from "@/features/chat/inbox";
 import { useClientData } from "@/features/client/data";
 import { clientNav, isPastRequest } from "@/features/client/rules";
 
@@ -16,6 +17,8 @@ function tabIcon(name: IconName) {
 
 export default function ClientTabs() {
   const { t } = useTheme();
+  // Both halves of the inbox (job + pre-hire threads), the same array the Messages tab lists.
+  const { totalUnread } = useChatInbox();
   const { state } = useClientData();
   const d = state.kind === "ok" ? state.data : null;
   const nav = clientNav({ pros: d?.pros.length ?? 0, plans: d?.plans.length ?? 0, past: d?.requests.filter(isPastRequest).length ?? 0 });
@@ -31,7 +34,8 @@ export default function ClientTabs() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: "Requests", tabBarIcon: tabIcon("clipboard-list") }} />
-      <Tabs.Screen name="messages" options={{ title: "Messages", tabBarIcon: tabIcon("message-square") }} />
+      <Tabs.Screen name="messages" options={{ title: "Messages", tabBarIcon: tabIcon("message-square"),
+        tabBarBadge: unreadBadge(totalUnread), tabBarBadgeStyle: { backgroundColor: t.accent500, color: "#fff" /* rule-ok: web badge text is white */, fontFamily: fonts.bodyBold } }} />
       <Tabs.Screen name="pros" options={{ title: "My Pros", tabBarIcon: tabIcon("user-check"), href: nav.pros || d?.prosFailed ? undefined : null }} />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: tabIcon("user") }} />
     </Tabs>

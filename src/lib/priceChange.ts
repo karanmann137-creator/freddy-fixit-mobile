@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@fd39b99:src/lib/priceChange.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@bb07bd7:src/lib/priceChange.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // The arithmetic of a mid-job price change — ONE implementation, shared by every
 // reader, because four surfaces have to agree on it to the cent:

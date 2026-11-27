@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@fd39b99:src/lib/emailValidation.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@bb07bd7:src/lib/emailValidation.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // Shared, dependency-free signup validators.
 // Goal: catch input that is *structurally* fine but almost certainly a mistake
