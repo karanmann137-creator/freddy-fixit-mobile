@@ -34,6 +34,12 @@ const LINE_RULES = [ // run on the comment-blanked text, line by line
   { rule: "No colour literal outside the tokens: use useTheme().t / rgba()",
     test: (l) => /(["'`])#[0-9a-fA-F]{3,8}\1|\b(rgba?|hsla?)\(\s*\d/.test(l), skip: (rel) => rel === "src/kit/theme.tsx" },
   { rule: "Consumer wording: say \"held securely\", never \"escrow\"", test: (l) => /escrow/i.test(l) },
+  { rule: "The inbox hooks run ONCE per area (ChatInboxProvider): read useChatInbox(). A second caller subscribes the same fixed realtime topic and throws",
+    test: (l) => /\b(useConversations|useBidThreads)\(/.test(l), skip: (rel) => rel === "src/features/chat/inbox.tsx" },
+  { rule: "PLAN §0: show get_job_fee / jobFunding figures (features/job/reads.ts shownTotal, shownBalance), never estimateJobTotal / estimateJobBalance",
+    test: (l) => /\bestimateJob(Total|Balance)\(/.test(l) },
+  { rule: "A realtime channel needs a fresh topic (+ nextTopic()): supabase-js hands back a channel still leaving, which silently receives nothing",
+    test: (l) => /supabase\.channel\(/.test(l) && !/nextTopic\(\)/.test(l) },
 ];
 
 // Money: a rate-looking number in a statement whose identifiers include a money word.
@@ -288,6 +294,9 @@ const MOUNTS = [
   { file: "src/features/contractor/JobsScreen.tsx", needle: 'jobChatHref("contractor", act.jobId)', min: 1, why: "the time-suggested and unread-message attention rows must open the job chat" },
   { file: "src/features/chat/JobChatScreen.tsx", needle: 'pathname: "/contractor/job/[id]", params: { id: jobId }', min: 1, why: "Open the job from chat must land on the job screen, for both roles" },
   { file: "src/features/chat/JobChatScreen.tsx", needle: 'pathname: "/client/job/[id]", params: { id: jobId }', min: 1, why: "Open the job from chat must land on the job screen, for both roles" },
+  { file: "src/features/job/reads.ts", needle: 'rpc("get_job_fee"', min: 1, why: "PLAN §0: a pre-charge total is get_job_fee's (the server applies the referral waiver); a local sum shows a waived client the full fee" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "shownTotal(job, data.fee)", min: 1, why: "the job total shown is get_job_fee's or the stored charge, never app arithmetic" },
+  { file: "src/features/client/rules.ts", needle: "shownBalance(j, x.fee)", min: 1, why: "the balance sentence reads jobFunding / get_job_fee, the same figure the job screen shows" },
   { file: "src/features/job/ClientJobScreen.tsx", needle: 'jobChatHref("client", job.id)', min: 1, why: "Message your pro must open the job chat; a hand-spelled path lands on not-found with no error" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: 'bidChatHref("client", b.request_id, b.contractor_id)', min: 1, why: "Ask a question opens that pro's bid thread in the app; without it a client can't ask before choosing" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: "await reload()", min: 3, why: "after a pick or delete the client's data must be re-read, or the Requests tab shows the old request (pull, pick, remove)" },
@@ -386,7 +395,7 @@ const MOUNTS = [
 const ORDER = [
   { file: "src/features/client/rules.ts", needles: ['go("contract"', 'go("address"', 'go("release"', 'go("balance"', 'go("price"', 'go("hike"', 'go("confirm"', 'go("sched"', 'go("walkthrough"', 'go("repost"'],
     why: "web's money-first order: agreement, address, failed release, balance, price, hike/confirm, then scheduling" },
-  { file: "src/features/client/rules.ts", needles: ["? jobStageRows(", 'key: "bids"', 'key: "photo"', 'key: "refcode"'],
+  { file: "src/features/client/rules.ts", needles: ["? jobStageRows(", 'key: "bids"', 'key: "photo"', 'key: "refcode"', 'key: "chattime"', 'key: "msg-"'],
     why: "job-stage (money) rows go before the estimates, photo and referral rows" },
   { file: "src/features/contractor/rules.ts", why: "web ContractorDashboard.tsx:1748-1858 attention order", needles: [
     'key: "payout-lock"', 'key: "claim-"', 'key: "resched-"', 'key: "wt-"', 'key: "wtdone-"', 'key: "slot-"', 'key: "propose-"', 'key: "soon-"',

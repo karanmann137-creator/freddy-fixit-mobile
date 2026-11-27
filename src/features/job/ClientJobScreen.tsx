@@ -28,22 +28,23 @@ import {
   type IconName,
 } from "@/kit";
 import { supabase } from "@/lib/supabase";
-import { jobFunded, addressMissing, autopayNoteText, estimateJobTotal } from "@/lib/jobRules";
+import { jobFunded, addressMissing, autopayNoteText } from "@/lib/jobRules";
 import { jobFullyFunded, jobRefunded } from "@/lib/jobFunding";
 import { pcRateLabel } from "@/lib/priceChange";
 import { CONTRACT_COPY_FAILED, sendContractCopy } from "@/lib/contractCopy";
 import { requestCompletionThanks } from "@/lib/completionPrompt";
 import { Tick, LinkButton } from "@/features/request/pieces";
 import { useClientData } from "@/features/client/data";
-import { balanceFigure, formatWhen, jobStageRows } from "@/features/client/rules";
+import { formatWhen, jobStageRows } from "@/features/client/rules";
 import { openOnWeb, webJobPath } from "@/features/client/web";
 import { AnchorProvider, Anchor, isJobAnchor, useAnchorHost, type JobAnchorId } from "./anchors";
-import { contractBlockedBy, contractCheckFailed, invokeReason, readClientJob, type ClientJob, type ClientJobRead } from "./reads";
+import { contractBlockedBy, contractCheckFailed, invokeReason, readClientJob, type ClientJob, type ClientJobRead, shownBalance, shownTotal } from "./reads";
 import { setReleaseNote, useReleaseNote } from "./releaseNotes";
 import { ContractPanel } from "./ContractPanel";
 import { ConfirmAddress } from "./ConfirmAddress";
 import { JobTimeline } from "./JobTimeline";
 import { jobChatHref } from "@/features/chat/routes";
+import { nextTopic } from "@/features/chat/parts";
 import { JobPhotos } from "./JobPhotos";
 import { PriceChangePanel, PriceHikePanel, QuoteBreakdown } from "./PricePanels";
 import { balanceDisabled, balanceOwedPanel, confirmDisabled, contractNote, depositDisabled, moneyIn, payRefusal } from "./payGates";
@@ -87,7 +88,7 @@ export function ClientJobScreen() {
   // Realtime: keep status/payment live as the pro acts (web subscribes the same way).
   useEffect(() => {
     if (!id) return;
-    const ch = supabase.channel("clientjob:" + id)
+    const ch = supabase.channel("clientjob:" + id + ":" + nextTopic())
       .on("postgres_changes", { event: "*", schema: "public", table: "jobs", filter: `id=eq.${id}` }, (payload) => {
         const row = payload.new as { id?: string } | null;
         if (!row?.id) return;
@@ -138,7 +139,7 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
   const checkFailed = contractCheckFailed(data.gate);
 
   // The SAME rows the Requests tab shows; the top one owns the screen's only primary button.
-  const rows = jobStageRows({ job, gate: data.gate, repostBlock: data.repostBlock, releaseNote, feeRate: data.feeRate, waived: data.waived });
+  const rows = jobStageRows({ job, gate: data.gate, repostBlock: data.repostBlock, releaseNote, fee: data.fee });
   const inSchedBlock = (job.status === "scheduled" || job.status === "in_progress") && !job.is_milestone;
   const inConfirmBlock = job.status === "pending_confirmation" && !job.is_milestone;
   const depositShown = ((inSchedBlock && job.payment_status !== "refunded") || inConfirmBlock) && !moneyIn(job) && !!job.amount;
@@ -160,7 +161,10 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
     return () => clearTimeout(h);
   }, [focusParam, focusTo]);
 
-  const owed = balanceFigure(job, data.feeRate, data.waived);
+  const owed = shownBalance(job, data.fee);
+  // A price-change PREVIEW (synced priceChange.ts) reads the server's rate and waiver; the charge itself is adjust-payment's.
+  const pcRate = data.fee ? data.fee.rate : data.feeRate;
+  const pcWaived = data.fee ? data.fee.waived : data.waived;
   const refresh = async () => { await reload(); };
   const afterChange = async () => { await reload(); void reloadClient(); };
   const leaveToRequests = async () => { await reloadClient(); if (router.canGoBack()) router.back(); else router.replace("/client"); };
@@ -391,8 +395,9 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
   );
 
   const depositPanel = (afterWork: boolean) => {
-    const total = job.total_charged != null || data.feeRate != null ? estimateJobTotal(job, data.feeRate ?? 0, data.waived ? job.id : null) : null;
-    const feeText = data.waived ? "Your service fee is waived on this job (referral reward)." : data.feeRate != null ? "Total includes a " + pcRateLabel(data.feeRate) + " service fee." : "";
+    // get_job_fee before the charge, the stored total after it (PLAN §0): never a local sum.
+    const total = shownTotal(job, data.fee);
+    const feeText = pcWaived ? "Your service fee is waived on this job (referral reward)." : pcRate != null ? "Total includes a " + pcRateLabel(pcRate) + " service fee." : "";
     return (
       <View style={{ marginTop: t.s3 }}>
         {job.payment_status === "failed" ? <Say icon="alert-triangle" color={t.danger}>Your last payment didn’t go through. No charge was made — please try again below.</Say> : null}
@@ -460,7 +465,7 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
           ) : (
             <View style={{ marginTop: t.s4 }}>
               {job.price_change_pending ? (
-                <PriceChangePanel job={job} feeRate={data.feeRate} waived={data.waived} busy={busy === "price"} primary={isPrimary("price")}
+                <PriceChangePanel job={job} feeRate={pcRate} waived={pcWaived} busy={busy === "price"} primary={isPrimary("price")}
                   onApprove={(payNow) => void approvePrice(payNow)} onDecline={() => void declinePrice()} />
               ) : null}
 
@@ -474,7 +479,7 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
                 <Anchor id="sched">
                   <View style={{ marginTop: t.s4 }}>
                     {job.price_hike_from != null && Number(job.amount ?? 0) > Number(job.price_hike_from) + 0.005 ? (
-                      <PriceHikePanel job={job} feeRate={data.feeRate} waived={data.waived} busy={busy === "sched"} onDeclineReopen={() => void declineReopen()} />
+                      <PriceHikePanel job={job} feeRate={pcRate} waived={pcWaived} busy={busy === "sched"} onDeclineReopen={() => void declineReopen()} />
                     ) : null}
                     <Card style={{ padding: t.s4 }}>
                       <Txt variant="bodyBold" size={0.95}>Your contractor proposed a time & price</Txt>

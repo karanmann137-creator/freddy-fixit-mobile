@@ -19,10 +19,10 @@ import {
   type AttnRow, type JobView, type Read,
 } from "./rules";
 import { openOnWeb, webJobPath } from "./web";
-import { getFeeRate } from "@/lib/platformRates";
 import { readJobExtras } from "@/features/job/reads";
 import { useReleaseNote } from "@/features/job/releaseNotes";
 import { useUnreadCount } from "./NotificationsScreen";
+import { useChatInbox } from "@/features/chat/inbox";
 
 export const STATUS: Record<string, { label: string; tone: "accent" | "good" | "warn" | "danger" | "neutral" }> = {
   pending: { label: "Out to pros", tone: "neutral" },
@@ -35,7 +35,7 @@ type ActiveReads = { job: Read<JobView>; bids: Read<number> };
 
 /** One request's job, its pro's first name and its open-estimate count. Never throws. */
 async function readActive(reqId: string | null, reqStatus: string | null, assignee: string | null): Promise<ActiveReads> {
-  const none = { gate: { kind: "ok" as const, signed: false, status: null }, repostBlock: undefined };
+  const none = { gate: { kind: "ok" as const, signed: false, status: null }, repostBlock: undefined, fee: null };
   if (!reqId) return { job: { kind: "ok", value: { job: null, proName: null, extras: none } }, bids: { kind: "ok", value: 0 } };
   try {
     const [j, pro, b] = await Promise.all([
@@ -64,6 +64,7 @@ async function readActive(reqId: string | null, reqStatus: string | null, assign
 export function RequestsScreen() {
   const { t } = useTheme();
   const { state, reload } = useClientData();
+  const chat = useChatInbox();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [active, setActive] = useState<(ActiveReads & { key: string }) | null>(null);
   const [nonce, setNonce] = useState(0);
@@ -71,8 +72,6 @@ export function RequestsScreen() {
   const showSkeleton = useDelayed();
   const unread = useUnreadCount(state.kind === "ok" ? state.data.userId : null);
   // platform_fee_rate(), for the balance figure on an uncharged job only. Unknown = no figure, never a guess.
-  const [feeRate, setFeeRate] = useState<number | null>(null);
-  useEffect(() => { void getFeeRate().then((r) => setFeeRate(r.ok ? r.rate : null)).catch(() => setFeeRate(null)); }, []);
 
   const data = state.kind === "ok" ? state.data : null;
   const req = data ? pickActiveRequest(data.requests, selectedId) : null;
@@ -101,7 +100,7 @@ export function RequestsScreen() {
   useEffect(() => { void peekReferralError().then(setRefError).catch(() => setRefError("")); }, [data]);
 
   // A pull re-reads everything: the lists, and (via the retry counter) the job.
-  const refreshAll = async () => { setNonce((n) => n + 1); await reload(); };
+  const refreshAll = async () => { setNonce((n) => n + 1); await Promise.all([reload(), chat.refresh()]); };
 
   if (state.kind === "error") {
     return <DeadEnd msg="We couldn't load your requests. Check your connection, then try again." onRetry={() => void reload()} />;
@@ -114,7 +113,7 @@ export function RequestsScreen() {
     );
   }
 
-  const rows = attentionRows({ req, job, bids, refError, releaseNote, feeRate });
+  const rows = attentionRows({ req, job, bids, refError, releaseNote, meId: data.userId, inbox: chat.rows });
   const pass = passFor({ req, job, bids, rows });
   const jv = job.kind === "ok" ? job.value : null;
   // Only a milestone job is still handed to the website (stage payments, step 4.9).
@@ -127,6 +126,7 @@ export function RequestsScreen() {
     if (r.action === "estimates" && req) return openRequest(req.id);
     if (r.action === "estimates" || r.action === "photo") return openOnWeb("/client-dashboard");
     if (r.action === "settings") return router.push("/client/account");
+    if (r.action === "chat" && r.href) return router.push(r.href);
     // A job-stage row lands on the job screen AT the control it names.
     if (r.action === "job" && r.jobId) return router.push({ pathname: "/client/job/[id]", params: { id: r.jobId, focus: r.anchor ?? "" } });
   };

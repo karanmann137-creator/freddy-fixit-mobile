@@ -18,12 +18,11 @@ import {
   AttentionCard, Card, DeadEnd, Group, Hero, HeroSub, JobSwitcher, Pass, PassMeta, PassMetaItem, PassTop, Pill, Row, Screen, SkRow, StateLine,
   useDelayed, useTheme,
 } from "@/kit";
-import { useConversations, type Conversation } from "@/lib/chatUnread";
-import { bidToConversation, useBidThreads } from "@/lib/bidThreads";
 import { jobCode } from "@/lib/jobCode";
 import { formatWhen } from "@/features/client/rules";
 import { openOnWeb } from "@/features/client/web";
 import { jobChatHref } from "@/features/chat/routes";
+import { useChatInbox } from "@/features/chat/inbox";
 import { useContractorData } from "./data";
 import { CalendarView } from "./CalendarView";
 import { Segmented } from "./Segmented";
@@ -50,18 +49,17 @@ export function JobsScreen() {
   const showSkeleton = useDelayed();
   const [mode, setMode] = useState<"list" | "calendar">("list");
   const [activeId, setActiveId] = useState<string | null>(null);
-  const userId = state.kind === "ok" ? state.data.userId : null;
-  // The same two inbox halves web merges (job threads + started bid threads).
-  const convs = useConversations(userId);
-  const bid = useBidThreads(userId);
+  // The area's one inbox (ChatInboxProvider in the contractor layout): the same merged
+  // job + started-bid threads web uses. Never call the synced hooks here as well: they
+  // subscribe on fixed topics, and a second subscriber on a joined channel throws.
+  const chat = useChatInbox();
 
   if (state.kind === "error") return <DeadEnd msg="We couldn't load your jobs. Check your connection, then try again." onRetry={() => void reload()} />;
   if (state.kind === "loading") {
     return <Screen>{showSkeleton ? <View style={{ paddingTop: t.s6, gap: t.s4 }}><SkRow /><SkRow /><SkRow /></View> : null}</Screen>;
   }
   const d = state.data;
-  const inbox: Conversation[] = [...convs.conversations, ...bid.started.map((x) => bidToConversation(x, d.userId))]
-    .sort((a, b) => (b.last_message_at ?? "").localeCompare(a.last_message_at ?? ""));
+  const inbox = chat.rows;
   const rows = contractorAttention({
     jobs: d.jobs, contractor: d.contractor, disputes: disputesByJob(d.disputes),
     contracts: d.contracts, contractsFailed: d.contractsFailed,
@@ -77,7 +75,7 @@ export function JobsScreen() {
   const payoutsOff = !d.contractor?.stripe_payouts_enabled;
 
   return (
-    <Screen edges={["left", "right"]} contentStyle={{ paddingHorizontal: 0 }} onRefresh={async () => { await Promise.all([reload(), convs.refresh(), bid.refresh()]); }}>
+    <Screen edges={["left", "right"]} contentStyle={{ paddingHorizontal: 0 }} onRefresh={async () => { await Promise.all([reload(), chat.refresh()]); }}>
       <Pass>
         <PassTop />
         {/* Live jobs only, no "+ NEW": a contractor doesn't create jobs (web). Hidden under two. */}

@@ -5,10 +5,12 @@
 //
 // Every read has three outcomes. A failed contract read is "blocked, couldn't
 // verify", never "signed" (web: contractBlocked starts true and clears only on a
-// positive contract_signed). Nothing here computes money.
+// positive contract_signed). Nothing here computes money: a figure shown before
+// the charge is get_job_fee's (PLAN §0), after it the stored total_charged.
 import { supabase } from "@/lib/supabase";
 import { readAuthUser } from "@/lib/authRead";
 import { getFeeRate } from "@/lib/platformRates";
+import { jobBalanceDue } from "@/lib/jobFunding";
 
 /**
  * The agreement gate. `signed` is true ONLY when contract_signed() answered
@@ -55,12 +57,49 @@ export async function readRepostBlock(job: any): Promise<string | null | undefin
   }
 }
 
-export type JobExtras = { gate: ContractGate; repostBlock: string | null | undefined };
+/** get_job_fee's canonical answer (the referral waiver applied by the server). */
+export type JobFee = { base: number; rate: number; fee: number; total: number; waived: boolean };
+
+/**
+ * get_job_fee for a job not yet charged. null = it couldn't be read or doesn't
+ * apply (already charged: total_charged is then the figure). A null fee shows no
+ * figure, never a guessed one.
+ */
+export async function readJobFee(job: any): Promise<JobFee | null> {
+  if (!job?.id || job.total_charged != null || !(Number(job.amount) > 0)) return null;
+  try {
+    const { data, error } = await supabase.rpc("get_job_fee", { p_client: job.client_id, p_job_id: job.id }).maybeSingle();
+    if (error || !data) return null;
+    const d = data as { base_amount: number; fee_rate: number; fee_amount: number; total: number; waived: boolean };
+    return { base: Number(d.base_amount), rate: Number(d.fee_rate), fee: Number(d.fee_amount), total: Number(d.total), waived: d.waived === true };
+  } catch {
+    return null;
+  }
+}
+
+/** The job total to show: the stored charge once there is one, else get_job_fee's total. null = unknown. */
+export function shownTotal(job: any, fee: JobFee | null): number | null {
+  if (job?.total_charged != null) return Number(job.total_charged);
+  return fee ? fee.total : null;
+}
+
+/**
+ * What is still owed, for the sentence only. Charged: jobFunding.jobBalanceDue
+ * (total_charged − funded_amount). Not charged yet: nothing has arrived, so it is
+ * get_job_fee's total; if money somehow arrived without a charged total, no figure.
+ */
+export function shownBalance(job: any, fee: JobFee | null): number | null {
+  if (job?.total_charged != null) return jobBalanceDue(job);
+  if (!fee || Number(job?.funded_amount ?? 0) > 0) return null;
+  return fee.total;
+}
+
+export type JobExtras = { gate: ContractGate; repostBlock: string | null | undefined; fee: JobFee | null };
 
 export async function readJobExtras(job: any): Promise<JobExtras> {
-  if (!job?.id) return { gate: { kind: "ok", signed: false, status: null }, repostBlock: undefined };
-  const [gate, repostBlock] = await Promise.all([readContractGate(job.id), readRepostBlock(job)]);
-  return { gate, repostBlock };
+  if (!job?.id) return { gate: { kind: "ok", signed: false, status: null }, repostBlock: undefined, fee: null };
+  const [gate, repostBlock, fee] = await Promise.all([readContractGate(job.id), readRepostBlock(job), readJobFee(job)]);
+  return { gate, repostBlock, fee };
 }
 
 export type ClientJob = JobExtras & {

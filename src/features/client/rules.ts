@@ -5,10 +5,14 @@
 import type { IconName, RowTone, State } from "@/kit";
 import { jobIsLive } from "@/lib/jobStage";
 import { jobFullyFunded } from "@/lib/jobFunding";
-import { addressMissing, estimateJobBalance } from "@/lib/jobRules";
-import { contractBlockedBy, contractCheckFailed, type ContractGate, type JobExtras } from "@/features/job/reads";
+import { addressMissing } from "@/lib/jobRules";
+import { contractBlockedBy, contractCheckFailed, shownBalance, type ContractGate, type JobExtras, type JobFee } from "@/features/job/reads";
 import { ADDRESS_ANCHOR, CONTRACT_ANCHOR, type JobAnchorId } from "@/features/job/anchors";
 import type { ReleaseNote } from "@/features/job/releaseNotes";
+import type { Conversation } from "@/lib/chatUnread";
+import { formatWhen as chatWhen } from "@/lib/chatParse";
+import { chatTimePending, partyName } from "@/features/chat/webChat";
+import { bidChatHref, jobChatHref } from "@/features/chat/routes";
 
 // ── Tabs (web visibleNav, ClientDashboard.tsx:116) ─────────────────────────────
 // Web shows My Pros only past 3 because up to 3 already render as a strip on its
@@ -46,34 +50,24 @@ export function jobOnWebOnly(job: any | null): boolean {
 // ORDER MATTERS: only the first three render (AttentionCard max={3}), so every row
 // that gates money is pushed FIRST. Same rows, same order, same words as web; each
 // job-stage row routes to the job screen at the control it names (`anchor`).
-// Not ported: the chat-time and unread-message rows (chat is step 4.10).
+// The conversational rows (a time suggested in chat, unread messages) go LAST, as on web.
 export type AttnRow = {
   key: string; icon: IconName; tone: RowTone;
   hero: string; text: string; cta: string;
-  action: "estimates" | "photo" | "settings" | "job";
+  action: "estimates" | "photo" | "settings" | "job" | "chat";
+  /** For action "chat": the thread to open. */
+  href?: string;
   /** For action "job": the job and the control to land on. */
   jobId?: string; anchor?: JobAnchorId;
 };
-
-/**
- * What is still owed on the job, for the sentence only (web `jobBalance(j)`, now
- * jobRules.estimateJobBalance). null when it can't be stated: an uncharged job whose
- * fee rate couldn't be read. When `total_charged` is set the rate is not consulted,
- * so the 0 passed then is never used. The app never computes a charge: the balance
- * checkout derives its own amount server-side.
- */
-export function balanceFigure(job: any, feeRate: number | null, waived: boolean): number | null {
-  if (job?.total_charged == null && feeRate == null) return null;
-  return estimateJobBalance(job, feeRate ?? 0, waived ? job?.id ?? null : null);
-}
 
 export type JobStageInput = {
   job: any;
   gate: ContractGate;
   repostBlock: string | null | undefined;
   releaseNote: ReleaseNote | null;
-  feeRate: number | null;
-  waived: boolean;
+  /** get_job_fee for an uncharged job (reads.ts); the balance sentence reads it, never a local rate. */
+  fee: JobFee | null;
 };
 
 /** The job-stage rows, money-gating first. The pass, the Requests card and the job screen's primary button all read this ONE array. */
@@ -102,7 +96,7 @@ export function jobStageRows(x: JobStageInput): AttnRow[] {
   }
   // 4. Work finished, only the deposit held: the balance stands between the pro and their money.
   if (j.status === "pending_confirmation" && !j.is_milestone && j.payment_status === "held" && !jobFullyFunded(j)) {
-    const owed = balanceFigure(j, x.feeRate, x.waived);
+    const owed = shownBalance(j, x.fee);
     go("balance", "dollar", "accent", "Your pro finished — the balance is due.",
       "Your pro finished the job — pay the remaining " + (owed != null ? "$" + owed.toFixed(2) : "balance") + " so you can confirm and release their payment.", "Pay balance", "confirm");
   }
@@ -133,13 +127,16 @@ export function attentionRows(o: {
   bids: Read<number>;
   refError: string;
   releaseNote: ReleaseNote | null;
-  feeRate: number | null;
+  /** Who I am, for "suggested by the OTHER side" (web chat_time_by !== profile.id). */
+  meId: string | null;
+  /** The area's one inbox (useChatInbox().rows): job threads + started bid threads. */
+  inbox: Conversation[];
 }): AttnRow[] {
   const jv = o.job.kind === "ok" ? o.job.value : null;
   const job = jv?.job ?? null;
   // A milestone job is on the website (4.9): its stage rows aren't ours to state.
   const rows: AttnRow[] = job && jv && !jobOnWebOnly(job)
-    ? jobStageRows({ job, gate: jv.extras.gate, repostBlock: jv.extras.repostBlock, releaseNote: o.releaseNote, feeRate: o.feeRate, waived: false })
+    ? jobStageRows({ job, gate: jv.extras.gate, repostBlock: jv.extras.repostBlock, releaseNote: o.releaseNote, fee: jv.extras.fee })
     : [];
   // Estimates in, no pro picked yet. A failed bid read adds no row (the card says
   // it couldn't load); it never asserts "no estimates".
@@ -156,6 +153,22 @@ export function attentionRows(o: {
   // Settings box reads-and-clears it as it explains.
   if (o.refError) {
     rows.push({ key: "refcode", icon: "sparkles", tone: "neutral", hero: "Your referral code didn't apply.", text: o.refError + " You can enter another code in Settings.", cta: "Open Settings", action: "settings" });
+  }
+  // ── Conversational rows last (web ClientDashboard.tsx:2237) ──
+  // A time the pro suggested in chat. Web opens its in-dashboard prompt; the app's
+  // prompt lives in the job chat ("A time was suggested … Accept or change").
+  if (job && chatTimePending(job, o.meId)) {
+    const who = jv?.proName || "Your pro";
+    rows.push({ key: "chattime", icon: "clock", tone: "neutral", hero: who + " suggested a time in the chat.", text: who + " suggested " + chatWhen(job.chat_time_at) + " in the chat.", cta: "Accept or change", action: "chat", href: jobChatHref("client", job.id) });
+  }
+  // Unread messages, capped at 2 so they can't bury the rows that gate money (web).
+  // A bid row's job_id is the synthetic bid:<request>:<pro> key, never a job id.
+  for (const c of o.inbox.filter((x) => x.unread > 0).slice(0, 2)) {
+    const href = c.kind === "bid"
+      ? (c.request_id && c.contractor_id ? bidChatHref("client", c.request_id, c.contractor_id) : undefined)
+      : jobChatHref("client", c.job_id);
+    if (!href) continue;
+    rows.push({ key: "msg-" + c.job_id, icon: "message-square", tone: "neutral", hero: partyName(c) + " sent you a message.", text: partyName(c) + " sent you " + (c.unread === 1 ? "a message" : c.unread + " messages") + " about “" + (c.service_needed ?? "your job") + "”.", cta: "Read it", action: "chat", href });
   }
   return rows;
 }
