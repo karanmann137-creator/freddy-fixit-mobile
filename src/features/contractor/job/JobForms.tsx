@@ -301,7 +301,7 @@ export function PriceChange({ job, busy, run, reload, minCallout, price, prefill
               <MoneyRow label="Their new total" value={pcMoney(pv.newTotal)} top strong />
             </View>
             <P>{pv.isReduction
-              ? (pv.funded - pv.newTotal > 0.005 ? "They have paid " + pcMoney(pv.funded) + ", so " + pcMoney(Math.round((pv.funded - pv.newTotal) * 100) / 100) + " goes back to their card." : "The balance they settle at the end comes down to " + pcMoney(pv.balanceOwed) + ".")
+              ? (pv.refund > 0.005 ? "They have paid " + pcMoney(pv.funded) + ", so " + pcMoney(pv.refund) + " goes back to their card." : "The balance they settle at the end comes down to " + pcMoney(pv.balanceOwed) + ".")
               : pv.isIncrease
                 ? (jobFullyFunded(job) ? "This job is paid in full, so approving sends them to a checkout for the " + pcMoney(pv.balanceOwed) + " difference right away." : "Nothing extra is charged today — the balance they settle at the end becomes " + pcMoney(pv.balanceOwed) + ".")
                 : "Same total as before — this just re-itemises the quote."}</P>

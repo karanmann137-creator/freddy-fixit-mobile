@@ -10,12 +10,15 @@
 // payout guards. adjust-payment / propose_price_change compute what is charged.
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useJobReadsEpoch } from "./refreshEpoch";
 
 export type Preview = {
   oldPrice: number; newPrice: number; delta: number; rate: number;
   oldFee: number; newFee: number; oldTotal: number; newTotal: number;
   funded: number; balanceOwed: number; isHeld: boolean; waived: boolean;
   newPayout: number;
+  /** What adjust-payment refunds on approval when we hold more than the new total (server, floored at 0). */
+  refund: number;
   /** Above a half-cent, as web priceChangeMath (float noise is not a change). */
   isIncrease: boolean; isReduction: boolean;
 };
@@ -33,7 +36,7 @@ export async function readPricePreview(jobId: string, amount: number | null): Pr
       oldPrice: n(data.old_price), newPrice: n(data.new_price), delta, rate: n(data.fee_rate),
       oldFee: n(data.old_fee), newFee: n(data.new_fee), oldTotal: n(data.old_total), newTotal: n(data.new_total),
       funded: n(data.funded), balanceOwed: n(data.balance_owed), isHeld: data.is_held === true, waived: data.waived === true,
-      newPayout: n(data.new_payout),
+      newPayout: n(data.new_payout), refund: n(data.refund_amount),
       isIncrease: delta > 0.005, isReduction: delta < -0.005,
     };
   } catch {
@@ -47,7 +50,9 @@ export async function readPricePreview(jobId: string, amount: number | null): Pr
  * typing "250" asks once, not three times. `enabled` false = nothing to preview.
  */
 export function usePricePreview(jobId: string | null | undefined, amount: number | null, stamp: string, enabled = true): PreviewRead {
-  const key = enabled && jobId ? jobId + "|" + (amount ?? "stored") + "|" + stamp : null;
+  // The epoch makes a pull-to-refresh re-read a failed preview even when the job's columns didn't change.
+  const epoch = useJobReadsEpoch();
+  const key = enabled && jobId ? jobId + "|" + (amount ?? "stored") + "|" + stamp + "|" + epoch : null;
   const [res, setRes] = useState<{ key: string; pc: Preview | null } | null>(null);
   useEffect(() => {
     if (!key || !jobId) return;

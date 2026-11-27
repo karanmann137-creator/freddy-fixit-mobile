@@ -21,6 +21,7 @@
 // own document already attached on the website can still be signed here. The
 // executed copy is HTML for the print shell; viewing it opens the website.
 import React, { useCallback, useEffect, useState } from "react";
+import { useJobReadsEpoch } from "@/features/job/refreshEpoch";
 import { View } from "react-native";
 import { Button, Field, Ic, Row, Card, SkText, Sk, Txt, rgba, useTheme } from "@/kit";
 import { supabase } from "@/lib/supabase";
@@ -96,7 +97,9 @@ function ContractBody({ job, onUpdated, primary }: { job: any; onUpdated: () => 
     if (row) { setClauses(row.custom_clauses || ""); setSource(row.source || "generated"); setUploadAck(!!row.uploaded_ack); }
     setLoading(false);
   }, [job.id]);
-  useEffect(() => { defer(load); }, [load]);
+  // Re-read on every pull too (the epoch), so a failed read recovers by pulling.
+  const epoch = useJobReadsEpoch();
+  useEffect(() => { defer(load); }, [load, epoch]);
 
   const status = contract?.status ?? null;
   const composing = !loading && !loadFailed && status !== "signed" && status !== "sent";

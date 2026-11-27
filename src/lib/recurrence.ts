@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@09b0a25:src/lib/recurrence.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@bb07bd7:src/lib/recurrence.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // Category-aware recurrence options for the booking flow.
 // The DB `freq_interval()` understands: weekly, biweekly, monthly, quarterly,

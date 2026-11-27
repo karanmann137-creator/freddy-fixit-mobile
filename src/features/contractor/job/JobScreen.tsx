@@ -26,6 +26,7 @@ import { tidyDescription } from "@/lib/jobText";
 import { freqLabel } from "@/lib/recurrence";
 import { useServicePricing } from "@/lib/servicePricing";
 import { jobChatHref } from "@/features/chat/routes";
+import { bumpJobReads } from "@/features/job/refreshEpoch";
 import { useContractorData, type ContractorData } from "../data";
 import { priceFor } from "../bid";
 import {
@@ -64,7 +65,7 @@ export function ContractorJobScreen({ id, focus }: { id: string; focus?: string 
     );
   }
   return (
-    <AnchorScroll onRefresh={reload} focus={focus}>
+    <AnchorScroll onRefresh={async () => { bumpJobReads(); await reload(); }} focus={focus}>
       <JobBody key={job.id} job={job} d={state.data} reload={reload} />
     </AnchorScroll>
   );

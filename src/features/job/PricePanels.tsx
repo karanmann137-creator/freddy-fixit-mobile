@@ -88,8 +88,8 @@ export function PriceChangePanel({ job, busy, primary, onApprove, onDecline }: {
                   : pc.isIncrease
                     ? "You have paid " + pcMoney(pc.funded) + " so far, and that is not re-collected or recalculated. Nothing is charged right now. Approving raises what is due once the work is finished to " + pcMoney(pc.balanceOwed) + "."
                     : pc.isReduction
-                      ? "You have paid " + pcMoney(pc.funded) + ". " + (pc.funded - pc.newTotal > 0.005
-                        ? "Approving refunds " + pcMoney(pc.funded - pc.newTotal) + " to the card you paid with, usually within 5–10 business days."
+                      ? "You have paid " + pcMoney(pc.funded) + ". " + (pc.refund > 0.005
+                        ? "Approving refunds " + pcMoney(pc.refund) + " to the card you paid with, usually within 5–10 business days."
                         : "Approving lowers what is due once the work is finished to " + pcMoney(pc.balanceOwed) + ".")
                       : "The total does not change — your pro has only re-itemised how the price breaks down. You have paid " + pcMoney(pc.funded) + ", leaving " + pcMoney(pc.balanceOwed) + " due at the end."}
               </Txt>

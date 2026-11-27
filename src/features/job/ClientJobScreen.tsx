@@ -45,6 +45,7 @@ import { ConfirmAddress } from "./ConfirmAddress";
 import { JobTimeline } from "./JobTimeline";
 import { jobChatHref } from "@/features/chat/routes";
 import { nextTopic } from "@/features/chat/parts";
+import { bumpJobReads } from "./refreshEpoch";
 import { JobPhotos } from "./JobPhotos";
 import { PriceChangePanel, PriceHikePanel, QuoteBreakdown } from "./PricePanels";
 import { balanceDisabled, balanceOwedPanel, confirmDisabled, contractNote, depositDisabled, moneyIn, payRefusal } from "./payGates";
@@ -165,8 +166,8 @@ function JobBody({ data, focusParam, reload, reloadClient, patchJob }: {
   // The fee LABEL beside a total (a rate, not a sum): get_job_fee's before the charge.
   const pcRate = data.fee ? data.fee.rate : data.feeRate;
   const pcWaived = data.fee ? data.fee.waived : data.waived;
-  const refresh = async () => { await reload(); };
-  const afterChange = async () => { await reload(); void reloadClient(); };
+  const refresh = async () => { bumpJobReads(); await reload(); };
+  const afterChange = async () => { bumpJobReads(); await reload(); void reloadClient(); };
   const leaveToRequests = async () => { await reloadClient(); if (router.canGoBack()) router.back(); else router.replace("/client"); };
 
   // ── Paying: on the website until E2. Same gates, same refusals as web's handlers. ──

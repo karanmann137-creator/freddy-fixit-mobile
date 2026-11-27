@@ -1,4 +1,4 @@
-// SYNCED from freddy-fixit@09b0a25:src/lib/contractorGuide.ts. DO NOT EDIT HERE.
+// SYNCED from freddy-fixit@bb07bd7:src/lib/contractorGuide.ts. DO NOT EDIT HERE.
 // Edit the web repo, then run `npm run sync`. See PLAN.md §2.
 // contractorGuide — the single source of truth for the contractor onboarding guide.
 //

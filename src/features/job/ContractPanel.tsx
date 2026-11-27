@@ -18,6 +18,7 @@
 // The contractor's compose-and-send branch is not here: it arrives with the
 // contractor job screen (5.6/5.7) and must reuse this file, not copy it.
 import React, { useCallback, useEffect, useState } from "react";
+import { useJobReadsEpoch } from "./refreshEpoch";
 import { View } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { Button, Card, Field, Ic, Sk, SkText, Txt, rgba, ui, useTheme } from "@/kit";
@@ -117,11 +118,13 @@ export function ContractPanel({ job, onUpdated, primary }: { job: any; onUpdated
   }, []);
   const load = useCallback(async () => { apply(await readContract(jobId)); }, [apply, jobId]);
 
+  // Re-read on every pull too (the epoch), so "pull down to refresh" can recover the panel.
+  const epoch = useJobReadsEpoch();
   useEffect(() => {
     let alive = true;
     void readContract(jobId).then((r) => { if (alive) apply(r); });
     return () => { alive = false; };
-  }, [apply, jobId]);
+  }, [apply, jobId, epoch]);
 
   const viewUpload = async () => {
     if (!contract?.uploaded_path) return;
