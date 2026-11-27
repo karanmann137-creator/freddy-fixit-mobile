@@ -66,3 +66,57 @@ export const dayLabel = (key: string) => {
 export const timeLabel = (iso: string) => new Date(iso).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit", timeZone: TZ });
 
 export const statusWords = (s: string) => String(s).replace(/_/g, " ");
+
+// ── Calgary wall clock <-> instant (PLAN 5.7: proposing a time) ─────────────────
+// Web's ScheduleField emits a "YYYY-MM-DDTHH:mm" read on the BROWSER's clock and
+// `new Date(v).toISOString()` turns it into an instant. On a phone the device zone
+// can be anywhere, so the app reads and writes that string on the CALGARY clock:
+// a pro travelling in Toronto who picks 9:00 AM means 9:00 AM at the job.
+const wallFmt = new Intl.DateTimeFormat("en-CA", {
+  timeZone: TZ, hour12: false, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+});
+
+function wallParts(d: Date) {
+  const p = wallFmt.formatToParts(d);
+  const get = (type: string) => Number(p.find((x) => x.type === type)?.value ?? NaN);
+  const h = get("hour");
+  return { y: get("year"), m: get("month"), d: get("day"), h: h === 24 ? 0 : h, mi: get("minute"), s: get("second") };
+}
+
+/** Calgary's UTC offset (ms, negative) at an instant. */
+function calgaryOffsetMs(utcMs: number): number {
+  const w = wallParts(new Date(utcMs));
+  return Date.UTC(w.y, w.m - 1, w.d, w.h, w.mi, w.s) - Math.floor(utcMs / 1000) * 1000;
+}
+
+const WALL_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
+
+/** "YYYY-MM-DDTHH:mm" on the Calgary clock → ISO instant. null when unreadable. */
+export function calgaryWallToIso(wall: string): string | null {
+  const m = WALL_RE.exec(wall || "");
+  if (!m) return null;
+  const guess = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]));
+  if (!Number.isFinite(guess)) return null;
+  let ts = guess - calgaryOffsetMs(guess);
+  const second = calgaryOffsetMs(ts); // across a DST change the first guess can be an hour out
+  if (guess - second !== ts) ts = guess - second;
+  return new Date(ts).toISOString();
+}
+
+/** ISO instant → "YYYY-MM-DDTHH:mm" on the Calgary clock. "" when unreadable. */
+export function isoToCalgaryWall(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const w = wallParts(d);
+  const p2 = (n: number) => String(n).padStart(2, "0");
+  return w.y + "-" + p2(w.m) + "-" + p2(w.d) + "T" + p2(w.h) + ":" + p2(w.mi);
+}
+
+/** Long date + time in Calgary (web's `toLocaleString()` spots). */
+export function whenLong(iso: string | null | undefined, fallback = "the agreed time"): string {
+  if (!iso) return fallback;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return fallback;
+  return d.toLocaleString("en-CA", { timeZone: TZ, weekday: "short", month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+}

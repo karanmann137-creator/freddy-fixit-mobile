@@ -21,6 +21,10 @@ export type ContractorData = {
   portfolio: any[]; portfolioFailed: boolean;
   earnStats: any | null; earnStatsFailed: boolean;
   bidsCount: number | null;
+  /** job_id -> service-agreement status (web loadContracts). A job with no row is "not started". */
+  contracts: Record<string, string>;
+  /** The job_contracts read failed: "send the agreement" stays silent rather than guess (web contractsFailed). */
+  contractsFailed: boolean;
 };
 
 type State = { kind: "loading" } | { kind: "error" } | { kind: "ok"; data: ContractorData };
@@ -68,15 +72,25 @@ export function ContractorDataProvider({ children }: { children: React.ReactNode
         if (p2.error || c2.error) return set({ kind: "error" });
         profile = p2.data; contractor = c2.data;
       }
+      // web loadContracts: a failed read is recorded, never read as "nothing sent yet".
+      const jobRows = jobs.data ?? [];
+      const contracts: Record<string, string> = {};
+      let contractsFailed = false;
+      if (jobRows.length > 0) {
+        const jc = await supabase.from("job_contracts").select("job_id, status").in("job_id", jobRows.map((j) => j.id));
+        if (jc.error || !jc.data) contractsFailed = true;
+        else for (const c of jc.data) if (c.job_id && c.status) contracts[c.job_id] = c.status;
+      }
       set({
         kind: "ok",
         data: {
           userId: uid, email: who.email ?? null, profile, contractor,
-          jobs: jobs.data ?? [], openJobs: Array.isArray(open.data) ? open.data : [], disputes: disp.data ?? [],
+          jobs: jobRows, openJobs: Array.isArray(open.data) ? open.data : [], disputes: disp.data ?? [],
           reviews: revs.data ?? [], reviewsFailed: !!revs.error,
           portfolio: pf.data ?? [], portfolioFailed: !!pf.error,
           earnStats: earn.error ? null : earn.data ?? null, earnStatsFailed: !!earn.error,
           bidsCount: bids.error ? null : bids.count ?? 0,
+          contracts, contractsFailed,
         },
       });
     } catch {

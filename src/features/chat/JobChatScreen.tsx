@@ -298,8 +298,9 @@ export function JobChatScreen({ jobId }: { jobId: string }) {
               </View>
             ) : null}
             <View style={{ marginLeft: "auto" }}>
-              {/* The job lives on the role's home tab until the job screens (4.7 / 5.7) land. */}
-              <ChatChip label="Open the job" onPress={() => router.navigate(role === "client" ? "/client" : "/contractor")} />
+              <ChatChip label="Open the job" onPress={() => router.navigate(role === "client"
+                ? { pathname: "/client/job/[id]", params: { id: jobId } }
+                : { pathname: "/contractor/job/[id]", params: { id: jobId } })} />
             </View>
           </View>
         ) : null}
