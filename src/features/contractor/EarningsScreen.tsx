@@ -74,7 +74,8 @@ export function EarningsScreen() {
   const uid = state.kind === "ok" ? state.data.userId : null;
   // Jobs priced but not charged yet: the ones whose payout only the server can estimate.
   const estKey = state.kind === "ok"
-    ? state.data.jobs.filter((j) => j.contractor_payout == null && Number(j.amount) > 0 && j.status !== "cancelled").map((j) => j.id + ":" + j.amount).join(",")
+    // Live jobs only: a finished job has its stored payout, and one call per old job on every pull is waste (gate review 3).
+    ? state.data.jobs.filter((j) => j.contractor_payout == null && Number(j.amount) > 0 && ["assigned", "scheduled", "in_progress", "pending_confirmation"].includes(j.status)).map((j) => j.id + ":" + j.amount).join(",")
     : "";
   const key = `${uid}|${nonce}|${estKey}`;
   // Reads keyed on the signed-in pro, the retry counter and the jobs to estimate: a result only shows under the key it was read for.
@@ -268,7 +269,7 @@ export function EarningsScreen() {
             const detail = new Date(j.created_at).toLocaleDateString("en-CA") + (j.amount ? (net != null ? " · " + usd0(j.amount) + " estimate" : "") : " · price TBD");
             return (
               <Row key={j.id} icon="briefcase" tone="neutral" title={j.request?.service_needed ?? "Job"} sub={detail}
-                amount={net != null ? usd2(net) : j.amount ? usd0(j.amount) : undefined}
+                amount={net != null ? usd2(net) : undefined}
                 right={<Pill tone={histTone(j.status)}>{jobStatusLabel(j)}</Pill>} />
             );
           })}
