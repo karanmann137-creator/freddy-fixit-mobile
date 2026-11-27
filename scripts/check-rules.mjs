@@ -284,6 +284,7 @@ const MOUNTS = [
   { file: "src/features/client/RequestDetailScreen.tsx", needle: 'job.kind === "ok" && canRemoveRequest(req, job.value)', min: 1, why: "Delete only where remove_client_request can succeed, and never on a failed job read (canRemoveRequest reads null as 'no job')" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: "await askConfirm(removeConfirm(", min: 1, why: "the confirm before remove_client_request: a delete is permanent" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: '"Couldn\'t remove request: " + error.message', min: 1, why: "remove_client_request's refusal (money held) is a readable server sentence; without it Delete silently does nothing" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: 'jobChatHref("client", job.id)', min: 1, why: "Message your pro must open the job chat; a hand-spelled path lands on not-found with no error" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: 'bidChatHref("client", b.request_id, b.contractor_id)', min: 1, why: "Ask a question opens that pro's bid thread in the app; without it a client can't ask before choosing" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: "await reload()", min: 3, why: "after a pick or delete the client's data must be re-read, or the Requests tab shows the old request (pull, pick, remove)" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: "if (leaving)", min: 1, why: "a successful pick/delete must not flash 'not found' while the re-read removes the request" },
@@ -319,7 +320,56 @@ const MOUNTS = [
   { file: "src/features/chat/BidChatScreen.tsx", needle: "requestId + \"/\" + contractorId + \"/\"", min: 1, why: "bid media must be <request>/<contractor>/<file>: bid_media_path_ok refuses anything else" },
   { file: "src/features/chat/inbox.tsx", needle: "useEffect(() => { curRef.current = cur; }, [cur]);", min: 1, why: "markJob/markBid must keep a stable identity, or each chat screen re-subscribes and re-marks in a loop" },
   { file: "src/lib/imageCompress.ts", needle: 't === "application/pdf"', min: 1, why: "PDFs must pass through compressImage untouched (web: the document profile never re-encodes a PDF)" },
+  // Phase 4.7: client job detail. THE FAIL-CLOSED PAYMENT GATE (gate G4b).
+  { file: "src/app/client/job/[id].tsx", needle: "ClientJobScreen", min: 1, why: "the route every job-stage attention row lands on must be the real job screen" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "<ContractPanel job={job}", min: 1, why: "without it the client has nowhere to sign, the charge functions 428 forever, and every job is unpayable with no error (web 2026-08 outage)" },
+  { file: "src/features/job/ContractPanel.tsx", needle: "<Shell", min: 5, why: "every render branch (loading, failed read, signed, not sent, sent) carries the contract anchor, or 'Review & sign' scrolls to nothing" },
+  { file: "src/features/job/ContractPanel.tsx", needle: "<Anchor id={CONTRACT_ANCHOR}>", min: 1, why: "the Shell every branch renders in is what carries the anchor" },
+  { file: "src/features/job/ContractPanel.tsx", needle: '"contract-sign"', min: 1, why: "the client signature goes through the same edge function as web; without it Sign does nothing" },
+  { file: "src/features/job/reads.ts", needle: '!(g.kind === "ok" && g.signed === true)', min: 1, why: "contractBlocked starts TRUE: loading and a failed check are blocked; only a positive contract_signed() clears it" },
+  { file: "src/features/job/reads.ts", needle: "signed: s.data === true", min: 1, why: "only an exact true from contract_signed() counts as signed (a null or a failed read is never 'signed')" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "contractBlockedBy(data.gate)", min: 1, why: "the screen's pay gate must be the fail-closed derivation, never a default-false flag" },
+  { file: "src/features/job/payGates.ts", needle: "contractBlocked || addressMissing(job)", min: 1, why: "the deposit button is disabled for the same reasons as web: unsigned agreement OR no confirmed address" },
+  { file: "src/features/job/payGates.ts", needle: "contractBlocked || !!job?.price_change_pending", min: 1, why: "the balance button is disabled while unsigned or while a price change is pending (web)" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "depositDisabled(job, contractBlocked)", min: 1, why: "the deposit button must read the mirrored gate" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "balanceDisabled(job, contractBlocked)", min: 1, why: "the balance button must read the mirrored gate" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "disabled={confirmDisabled(job)}", min: 1, why: "Confirm & release stays disabled while part-funded or a price change is pending (confirm_job_completion raises)" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "payRefusal(job, contractBlocked, checkFailed, what)", min: 1, why: "a tap on a blocked Pay button says why, in web's words" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "\"Couldn't confirm: \" + error.message", min: 1, why: "confirm_job_completion raises with the exact balance owed: shown verbatim, or Confirm silently does nothing" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "<ConfirmAddress", min: 1, why: "the address-confirm panel: without it the deposit button is disabled forever with nowhere to fix it" },
+  { file: "src/features/job/ConfirmAddress.tsx", needle: "<Anchor id={ADDRESS_ANCHOR}>", min: 2, why: "both branches (needs confirming, confirmed) carry the address anchor the attention row lands on" },
+  { file: "src/features/job/ConfirmAddress.tsx", needle: '"confirm_job_address"', min: 1, why: "the address is saved only through this RPC; its refusal is shown verbatim" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "await openOnWeb(webJobPath(job.id));", min: 2, why: "paying happens on the website until E2: the job is RE-READ when the browser closes (the return is never proof of payment)" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: '"release-payment"', min: 1, why: "after confirming, release is attempted at once as on web; reconcile-payouts is only the retry" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: '"decline_price_change"', min: 1, why: "the only way to refuse a pending price change: without it a held job with a pending change has no exit (web check_mounts)" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: '"adjust-payment"', min: 1, why: "the only way to approve a pending price change (web check_mounts approvePriceChange)" },
+  { file: "src/features/job/ClientJobScreen.tsx", needle: "<PriceChangePanel", min: 1, why: "the pending price-change panel: the approve/decline controls live in it" },
+  { file: "src/features/job/ClaimScreen.tsx", needle: "evidence: true", min: 1, why: "claim photos are evidence: a gore verdict must not block the photo that proves an injury (web)" },
+  { file: "src/app/client/claim/[id].tsx", needle: "ClaimScreen", min: 1, why: "'File a claim' must open the real claim form" },
+  { file: "src/features/client/RequestsScreen.tsx", needle: 'r.action === "job"', min: 1, why: "a job-stage attention row must open the job screen, or the row is a button that does nothing" },
+  { file: "src/features/client/RequestsScreen.tsx", needle: 'pathname: "/client/job/[id]"', min: 2, why: "the attention rows and the job row both open the job screen" },
+  { file: "src/features/client/RequestsScreen.tsx", needle: "await readJobExtras(", min: 1, why: "the gate and re-post answer arrive WITH the job, so no row is derived from an unread gate" },
 ];
+
+// ORDER: the attention rows are capped at 3 (AttentionCard max), so the money-gating
+// rows must come FIRST. A reorder errors nowhere: it only hides the agreement or the
+// balance behind conversational rows (web 2026-11). Each list must appear in order.
+const ORDER = [
+  { file: "src/features/client/rules.ts", needles: ['go("contract"', 'go("address"', 'go("release"', 'go("balance"', 'go("price"', 'go("hike"', 'go("confirm"', 'go("sched"', 'go("walkthrough"', 'go("repost"'],
+    why: "web's money-first order: agreement, address, failed release, balance, price, hike/confirm, then scheduling" },
+  { file: "src/features/client/rules.ts", needles: ["? jobStageRows(", 'key: "bids"', 'key: "photo"', 'key: "refcode"'],
+    why: "job-stage (money) rows go before the estimates, photo and referral rows" },
+];
+for (const o of ORDER) {
+  let text = "";
+  try { const t = readFileSync(join(ROOT, o.file), "utf8"); text = blankComments(t, parse(t, o.file)); } catch { /* missing file */ }
+  let at = -1;
+  for (const nd of o.needles) {
+    const i = text.indexOf(nd, at + 1);
+    if (i < 0 || i < at) { problems.push(`${o.file}  attention order broken at "${nd}": ${o.why}`); break; }
+    at = i;
+  }
+}
 for (const m of MOUNTS) {
   let text = "";
   try { const t = readFileSync(join(ROOT, m.file), "utf8"); text = blankComments(t, parse(t, m.file)); } catch { /* missing file = 0 */ }

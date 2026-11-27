@@ -3,9 +3,9 @@
 //
 // Every read here has three outcomes. A failed read renders "couldn't load" with a
 // retry, never a confident zero (web: `jobLoadFailed`, `pickBid` re-opening it).
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import {
   AttentionCard, Button, Card, DeadEnd, Group, Hero, HeroSub, Ic, IconButton, JobSwitcher, Pass, PassMeta, PassMetaItem, PassTop,
   Pill, Row, Screen, SkRow, StateLine, Txt, rgba, useDelayed, useTheme,
@@ -15,10 +15,13 @@ import { peekReferralError } from "@/lib/referralCode";
 import { tidyDescription } from "@/lib/jobText";
 import { useClientData } from "./data";
 import {
-  attentionRows, formatWhen, isPastRequest, jobNeedsWeb, passFor, pickActiveRequest, requestDot,
+  attentionRows, formatWhen, isPastRequest, jobOnWebOnly, passFor, pickActiveRequest, requestDot,
   type AttnRow, type JobView, type Read,
 } from "./rules";
-import { openOnWeb } from "./web";
+import { openOnWeb, webJobPath } from "./web";
+import { getFeeRate } from "@/lib/platformRates";
+import { readJobExtras } from "@/features/job/reads";
+import { useReleaseNote } from "@/features/job/releaseNotes";
 import { useUnreadCount } from "./NotificationsScreen";
 
 export const STATUS: Record<string, { label: string; tone: "accent" | "good" | "warn" | "danger" | "neutral" }> = {
@@ -32,7 +35,8 @@ type ActiveReads = { job: Read<JobView>; bids: Read<number> };
 
 /** One request's job, its pro's first name and its open-estimate count. Never throws. */
 async function readActive(reqId: string | null, reqStatus: string | null, assignee: string | null): Promise<ActiveReads> {
-  if (!reqId) return { job: { kind: "ok", value: { job: null, proName: null } }, bids: { kind: "ok", value: 0 } };
+  const none = { gate: { kind: "ok" as const, signed: false, status: null }, repostBlock: undefined };
+  if (!reqId) return { job: { kind: "ok", value: { job: null, proName: null, extras: none } }, bids: { kind: "ok", value: 0 } };
   try {
     const [j, pro, b] = await Promise.all([
       supabase.from("jobs").select("*").eq("request_id", reqId).neq("status", "cancelled")
@@ -45,8 +49,11 @@ async function readActive(reqId: string | null, reqStatus: string | null, assign
     ]);
     // The pro's name is decoration: a failed read drops the name, never the job.
     const proName = !pro.error && pro.data ? ((pro.data as { first_name?: string | null }).first_name ?? null) : null;
+    // The agreement gate and the re-post answer arrive WITH the job, so no attention
+    // row is derived from a job whose gate hasn't been read (it would flash "sign it").
+    const extras = !j.error && j.data ? await readJobExtras(j.data) : none;
     return {
-      job: j.error ? { kind: "error" } : { kind: "ok", value: { job: j.data ?? null, proName } },
+      job: j.error ? { kind: "error" } : { kind: "ok", value: { job: j.data ?? null, proName, extras } },
       bids: b.error ? { kind: "error" } : { kind: "ok", value: (b as { count?: number | null }).count ?? 0 },
     };
   } catch {
@@ -63,6 +70,9 @@ export function RequestsScreen() {
   const [refError, setRefError] = useState("");
   const showSkeleton = useDelayed();
   const unread = useUnreadCount(state.kind === "ok" ? state.data.userId : null);
+  // platform_fee_rate(), for the balance figure on an uncharged job only. Unknown = no figure, never a guess.
+  const [feeRate, setFeeRate] = useState<number | null>(null);
+  useEffect(() => { void getFeeRate().then((r) => setFeeRate(r.ok ? r.rate : null)).catch(() => setFeeRate(null)); }, []);
 
   const data = state.kind === "ok" ? state.data : null;
   const req = data ? pickActiveRequest(data.requests, selectedId) : null;
@@ -74,14 +84,19 @@ export function RequestsScreen() {
   // result is only shown under the key it was read for, so switching requests
   // can't paint one request's job onto another, and a new key reads as "loading".
   const key = `${reqId}|${reqStatus}|${assignee}|${nonce}`;
+  // Coming back to the tab (from the job screen, where the client may have signed or
+  // confirmed) re-reads under the SAME key: fresh rows, no "loading" flash.
+  const [focusTick, setFocusTick] = useState(0);
+  useFocusEffect(useCallback(() => { setFocusTick((n) => n + 1); }, []));
   useEffect(() => {
     let stale = false;
     void readActive(reqId, reqStatus, assignee).then((r) => { if (!stale) setActive({ key, ...r }); });
     return () => { stale = true; };
-  }, [key, reqId, reqStatus, assignee]);
+  }, [key, reqId, reqStatus, assignee, focusTick]);
   const job: Read<JobView> = active?.key === key ? active.job : { kind: "loading" };
   const bids: Read<number> = active?.key === key ? active.bids : { kind: "loading" };
   const retryActive = () => setNonce((n) => n + 1);
+  const releaseNote = useReleaseNote(job.kind === "ok" ? job.value.job?.id : null);
 
   useEffect(() => { void peekReferralError().then(setRefError).catch(() => setRefError("")); }, [data]);
 
@@ -99,12 +114,11 @@ export function RequestsScreen() {
     );
   }
 
-  const rows = attentionRows({ req, job, bids, refError });
+  const rows = attentionRows({ req, job, bids, refError, releaseNote, feeRate });
   const pass = passFor({ req, job, bids, rows });
   const jv = job.kind === "ok" ? job.value : null;
-  // The job handoff shows for every live job, whatever the pass says: an attention row
-  // (say a referral notice) turns the pass to YOUR TURN but can't manage the job (CodeRabbit #6).
-  const jobOnWeb = !!jv?.job && jobNeedsWeb(jv.job);
+  // Only a milestone job is still handed to the website (stage payments, step 4.9).
+  const jobOnWeb = !!jv?.job && jobOnWebOnly(jv.job);
 
   const openRequest = (id: string) => router.push({ pathname: "/client/request/[id]", params: { id } });
   const act = (r: AttnRow) => {
@@ -113,6 +127,8 @@ export function RequestsScreen() {
     if (r.action === "estimates" && req) return openRequest(req.id);
     if (r.action === "estimates" || r.action === "photo") return openOnWeb("/client-dashboard");
     if (r.action === "settings") return router.push("/client/account");
+    // A job-stage row lands on the job screen AT the control it names.
+    if (r.action === "job" && r.jobId) return router.push({ pathname: "/client/job/[id]", params: { id: r.jobId, focus: r.anchor ?? "" } });
   };
 
   return (
@@ -158,18 +174,26 @@ export function RequestsScreen() {
           <RequestCard req={req} job={job} bids={bids} onRetry={retryActive} onOpen={() => openRequest(req.id)} />
         )}
 
-        {/* Every "ON THE WEBSITE" pass gets a way there: a live job, or a request
-            stage the app can't read yet (review G4a #3). */}
-        {jobOnWeb || pass.label === "ON THE WEBSITE" ? (
+        {/* The job itself: every live job opens the job screen; a milestone job (4.9) and a
+            request stage the app can't read yet still go to the website (review G4a #3). */}
+        {jv?.job && !jobOnWeb ? (
+          <Group label="This job">
+            <Card>
+              <Row icon="briefcase" tone="neutral" title={(jv.proName || "Your pro") + (jv.job.scheduled_at ? " · " + formatWhen(jv.job.scheduled_at) : "")}
+                sub="Agreement, payment, photos and progress" chevron
+                onPress={() => router.push({ pathname: "/client/job/[id]", params: { id: jv.job.id } })} />
+            </Card>
+          </Group>
+        ) : jobOnWeb || pass.label === "ON THE WEBSITE" ? (
           <Group label={jobOnWeb ? "This job" : "This request"}>
             <Card>
               {jv?.job && jobOnWeb ? (
                 <Row icon="briefcase" tone="neutral" title={(jv.proName || "Your pro") + (jv.job.scheduled_at ? " · " + formatWhen(jv.job.scheduled_at) : "")}
-                  sub="Open the job on freddyfixit.ca to sign, pay, message or confirm. Job screens come to the app next." chevron
-                  onPress={() => openOnWeb("/client-dashboard")} />
+                  sub="This job is paid in stages: open it on freddyfixit.ca to fund, approve or message. Stage payments come to the app next." chevron
+                  onPress={() => void openOnWeb(webJobPath(jv.job.id))} />
               ) : (
                 <Row icon="briefcase" tone="neutral" title="Open this request on freddyfixit.ca" sub="The website shows every stage." chevron
-                  onPress={() => openOnWeb("/client-dashboard")} />
+                  onPress={() => void openOnWeb("/client-dashboard")} />
               )}
             </Card>
           </Group>
