@@ -279,7 +279,51 @@ const MOUNTS = [
   { file: "src/app/_layout.tsx", needle: "<CompletionThanksHost", min: 1, why: "without it the job-done ask stamps its cooldown and shows nothing, so the person is never asked again" },
   { file: "src/features/client/CompletionThanksHost.tsx", needle: "on(COMPLETION_THANKS_EVENT", min: 1, why: "the host must listen, or requestCompletionThanks emits to nobody" },
   { file: "src/lib/imageCompress.ts", needle: 't === "application/pdf"', min: 1, why: "PDFs must pass through compressImage untouched (web: the document profile never re-encodes a PDF)" },
+  // Phase 5.6 / 5.7: contractor Jobs tab attention chain + job screen.
+  { file: "src/features/contractor/rules.ts", needle: "} else if (job.", min: 6, why: "the per-job attention rows are web's else-if chain: flattening it into ifs shows overlapping rows and evicts money rows from the 4 slots" },
+  { file: "src/features/contractor/rules.ts", needle: "!o.contractsFailed && !payoutLocked && jobIsLive(job)", min: 1, why: "a failed job_contracts read must never assert 'send the agreement', and the row is a dead control while payouts are off (web)" },
+  { file: "src/features/contractor/data.tsx", needle: "contractsFailed = true", min: 1, why: "a failed job_contracts read is recorded, never read as 'nothing sent yet'" },
+  { file: "src/features/contractor/JobsScreen.tsx", needle: "<AttentionCard max={4}>", min: 1, why: "the contractor shows FOUR rows (web): with the kit default of 3, a claim + agreement + photos + balance silently drops one money gate" },
+  { file: "src/features/contractor/JobsScreen.tsx", needle: "contractorAttention(", min: 1, why: "the card, the pass and the switcher dots must read the one chain" },
+  { file: "src/features/contractor/JobsScreen.tsx", needle: "focus: act.anchor", min: 1, why: "an attention row must land on the control it names, not the top of the job" },
+  { file: "src/features/contractor/CalendarView.tsx", needle: "onOpen(j.id)", min: 1, why: "a calendar visit opens the in-app job screen; without it the tap does nothing" },
+  { file: "src/app/contractor/job/[id].tsx", needle: "ContractorJobScreen", min: 1, why: "every Jobs row, attention row and calendar visit routes here" },
+  { file: "src/features/contractor/job/anchors.tsx", needle: "scrollToAnchor(focus", min: 1, why: "the route's focus param must scroll to the section, or every attention row lands on the top of the screen" },
+  { file: "src/features/contractor/job/JobScreen.tsx", needle: "<ContractPanel", min: 1, why: "without the contractor's agreement panel no agreement can be sent and the job can never be paid, with no error anywhere (web fa5e2b5)" },
+  { file: "src/features/contractor/job/ContractPanel.tsx", needle: "<Anchor id={CONTRACT_ANCHOR}>", min: 1, why: "the one wrapper that puts CONTRACT_ANCHOR on every branch, loading included" },
+  { file: "src/features/contractor/job/ContractPanel.tsx", needle: "if (loadFailed)", min: 1, why: "fail closed: a failed get_job_contract read is couldn't-load + retry, never the signed or compose branch" },
+  { file: "src/features/contractor/job/ContractPanel.tsx", needle: 'ensureTermsAccepted("sign-contract")', min: 1, why: "the terms gate before signing (web contractorSign)" },
+  { file: "src/features/contractor/job/ContractPanel.tsx", needle: "context?.json?.()", min: 1, why: "contract-sign's refusal reason is in the response body, which functions.invoke drops" },
+  { file: "src/features/contractor/job/JobScreen.tsx", needle: "disabled={busy || miss.length > 0}", min: 1, why: "Mark complete is disabled while photosMissing(job) names a photo (web)" },
+  { file: "src/features/contractor/job/JobScreen.tsx", needle: "if (photosMissing(job).length)", min: 1, why: "markComplete re-checks photosMissing before the RPC (web)" },
+  { file: "src/features/contractor/job/JobForms.tsx", needle: "if (!canWithdraw(job)) return null;", min: 1, why: "Withdraw only renders when canWithdraw (mirrors job_money_block, stricter): a control that can never succeed is worse than none" },
+  { file: "src/features/contractor/job/JobScreen.tsx", needle: "<WithdrawButton", min: 1, why: "withdraw on a scheduled / in-progress unpaid job (web)" },
+  { file: "src/features/contractor/job/JobForms.tsx", needle: "<WithdrawButton", min: 1, why: "withdraw beside the time & price proposal (web)" },
+  { file: "src/features/contractor/job/JobForms.tsx", needle: "calgaryWallToIso(", min: 2, why: "proposed times are read on the Calgary clock, never the phone's zone (walkthrough + schedule)" },
+  { file: "src/features/contractor/job/JobPhotos.tsx", needle: "evidence: true", min: 1, why: "job photos are evidence: only sexual/hate block (web shouldBlock(scan, { evidence: true }))" },
+  { file: "src/features/contractor/job/JobPhotos.tsx", needle: "save_job_photo", min: 1, why: "an uploaded photo is not on the job until save_job_photo records it; without it Mark complete stays blocked" },
+  { file: "src/features/contractor/job/JobPhotos.tsx", needle: "failed[p]", min: 1, why: "a saved photo whose link failed says so, never 'not uploaded yet'" },
+  { file: "src/features/contractor/job/JobTools.tsx", needle: "getCommissionRate", min: 1, why: "the expenses payout uses platformRates (web hard-codes 93 there); no rate means no payout figure" },
 ];
+
+// ORDER: needles that must appear in this order in the file (web's attention chain
+// order: money-gating rows first, conversational rows last; only four render).
+const ORDERS = [
+  { file: "src/features/contractor/rules.ts", why: "web ContractorDashboard.tsx:1748-1858 attention order", needles: [
+    'key: "payout-lock"', 'key: "claim-"', 'key: "resched-"', 'key: "wt-"', 'key: "wtdone-"', 'key: "slot-"', 'key: "propose-"', 'key: "soon-"',
+    'key: "bal-"', 'key: "contract-"', 'key: "photo-"', 'key: "reserved"', 'key: "chattime-"', 'key: "msg-"',
+  ] },
+];
+for (const o of ORDERS) {
+  let text = "";
+  try { const t = readFileSync(join(ROOT, o.file), "utf8"); text = blankComments(t, parse(t, o.file)); } catch { /* missing file = every needle missing */ }
+  let at = -1;
+  for (const n of o.needles) {
+    const i = text.indexOf(n, at + 1);
+    if (i < 0) { problems.push(`${o.file}  order check: "${n}" missing or out of order (${o.why})`); break; }
+    at = i;
+  }
+}
 for (const m of MOUNTS) {
   let text = "";
   try { const t = readFileSync(join(ROOT, m.file), "utf8"); text = blankComments(t, parse(t, m.file)); } catch { /* missing file = 0 */ }

@@ -233,7 +233,7 @@ function BidFormView({ r, f, patch, pricing, minCallout }: {
  * PREFILL the amount when tapped; nothing validates against either. The
  * itemised total is the sum of what was typed (web's own line), not a fee.
  */
-function QuoteBreakdown({ v, on, calloutHint, price, target }: {
+export function QuoteBreakdown({ v, on, calloutHint, price, target }: {
   v: BidForm; on: (p: Partial<BidForm>) => void; calloutHint: number | null; price: ServicePrice | null; target: number | null;
 }) {
   const { t } = useTheme();

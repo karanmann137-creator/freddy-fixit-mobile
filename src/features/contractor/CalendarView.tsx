@@ -1,13 +1,12 @@
 // Calendar toggle inside the Jobs tab (PLAN 5.8). Port of web JobsCalendar.tsx:
 // a month grid of the contractor's booked jobs and the selected day's visits, all
 // in Calgary time (calendarRules.ts). No reads of its own: it plots the jobs
-// useContractorData already loaded. Tapping a visit hands it to the website, like
-// the list, until the job screen (5.7) exists.
+// useContractorData already loaded. Tapping a visit opens the in-app job screen
+// (web JobsCalendar onOpen: the same job card the list opens).
 import React, { useState } from "react";
 import { Pressable, View } from "react-native";
 import { Card, Group, Ic, Row, Txt, rgba, ui, useTheme } from "@/kit";
 import { money } from "@/lib/servicePricing";
-import { openOnWeb } from "@/features/client/web";
 import { bucketByDay, calgaryToday, dayLabel, keyOf, monthCells, monthLabel, shiftMonth, statusWords, timeLabel, unscheduledCount, type YM } from "./calendarRules";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -22,7 +21,7 @@ function MonthButton({ label, onPress, children }: { label: string; onPress: () 
   );
 }
 
-export function CalendarView({ jobs }: { jobs: any[] }) {
+export function CalendarView({ jobs, onOpen }: { jobs: any[]; onOpen: (jobId: string) => void }) {
   const { t } = useTheme();
   // Read Calgary's date on every render, so a screen left open past midnight
   // marks and jumps to the real today (CodeRabbit #8).
@@ -57,7 +56,7 @@ export function CalendarView({ jobs }: { jobs: any[] }) {
         <View style={{ flexDirection: "row", gap: t.s2, marginBottom: t.s3 }}>
           <Ic name="alert-triangle" size={ui.icon.sm} color={t.warn} />
           <Txt size={0.82} color={rgba(t.muted, 0.9)} style={{ flex: 1 }}>
-            {(unscheduled === 1 ? "1 active job has" : unscheduled + " active jobs have") + " no booked time yet. Propose a time from the website to see " + (unscheduled === 1 ? "it" : "them") + " here."}
+            {(unscheduled === 1 ? "1 active job has" : unscheduled + " active jobs have") + " no booked time yet. Propose a time on the job to see " + (unscheduled === 1 ? "it" : "them") + " here."}
           </Txt>
         </View>
       ) : null}
@@ -119,7 +118,7 @@ export function CalendarView({ jobs }: { jobs: any[] }) {
                 <Row key={j.id} icon="calendar" tone="neutral"
                   title={timeLabel(j.scheduled_at) + " · " + (j.request?.service_needed ?? "Job")}
                   sub={where + (j.amount ? (where ? " · " : "") + money(Number(j.amount)) : "") + (where || j.amount ? " · " : "") + statusWords(j.status)}
-                  chevron onPress={() => openOnWeb("/contractor-dashboard")} />
+                  chevron onPress={() => onOpen(j.id)} />
               );
             })}
           </Card>
