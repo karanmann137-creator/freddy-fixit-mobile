@@ -284,6 +284,7 @@ const MOUNTS = [
   { file: "src/features/client/RequestDetailScreen.tsx", needle: 'job.kind === "ok" && canRemoveRequest(req, job.value)', min: 1, why: "Delete only where remove_client_request can succeed, and never on a failed job read (canRemoveRequest reads null as 'no job')" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: "await askConfirm(removeConfirm(", min: 1, why: "the confirm before remove_client_request: a delete is permanent" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: '"Couldn\'t remove request: " + error.message', min: 1, why: "remove_client_request's refusal (money held) is a readable server sentence; without it Delete silently does nothing" },
+  { file: "src/features/client/RequestDetailScreen.tsx", needle: 'bidChatHref("client", b.request_id, b.contractor_id)', min: 1, why: "Ask a question opens that pro's bid thread in the app; without it a client can't ask before choosing" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: "await reload()", min: 3, why: "after a pick or delete the client's data must be re-read, or the Requests tab shows the old request (pull, pick, remove)" },
   { file: "src/features/client/RequestDetailScreen.tsx", needle: "if (leaving)", min: 1, why: "a successful pick/delete must not flash 'not found' while the re-read removes the request" },
   { file: "src/features/client/ReviewScreen.tsx", needle: "req.user_id === userId", min: 1, why: "the request must be the signed-in person's own: compare ids, don't trust that the read returned it" },

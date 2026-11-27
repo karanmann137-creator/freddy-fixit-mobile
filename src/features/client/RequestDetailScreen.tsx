@@ -41,7 +41,7 @@ import type { Database } from "@/lib/database.types";
 import { useClientData } from "./data";
 import { STATUS } from "./RequestsScreen";
 import type { Read } from "./rules";
-import { openOnWeb } from "./web";
+import { bidChatHref } from "@/features/chat/routes";
 
 type Bid = Database["public"]["Tables"]["bids"]["Row"];
 type Pro = { name: string; photo: string | null; grade: Grade | null; id: boolean; ins: boolean; wcb: boolean };
@@ -356,8 +356,7 @@ function BidCard({ b, est, best, primary, busy, onPick }: {
       </View>
       <ButtonRow>
         <Button variant="ghost" full onPress={() => router.push({ pathname: "/pro/[id]", params: { id: b.contractor_id } })}>Profile</Button>
-        {/* Bid-stage chat is step 4.11; until it lands the website has it. */}
-        <Button variant="ghost" full accessibilityLabel={`Ask ${name} a question on the website`} onPress={() => openOnWeb("/client-dashboard")}>Ask a question</Button>
+        <Button variant="ghost" full accessibilityLabel={`Ask ${name} a question`} onPress={() => router.push(bidChatHref("client", b.request_id, b.contractor_id))}>Ask a question</Button>
       </ButtonRow>
     </DashCard>
   );
