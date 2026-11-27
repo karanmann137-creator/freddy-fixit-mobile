@@ -6,14 +6,16 @@
 // so": a failed read shows a message that says pull down (or a Retry button),
 // never a confident zero.
 import React, { useState } from "react";
-import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View, type ViewStyle } from "react-native";
+import { KeyboardAvoidingView, Platform, RefreshControl, ScrollView, View, type ScrollViewInstance, type ViewStyle } from "react-native";
 import { SafeAreaView, type Edge } from "react-native-safe-area-context";
 import { useTheme } from "./theme";
 
 export function Screen({
-  children, onRefresh, scroll = true, edges = ["top", "left", "right"], contentStyle,
+  children, onRefresh, scroll = true, edges = ["top", "left", "right"], contentStyle, scrollRef,
 }: {
   children: React.ReactNode;
+  /** The ScrollView, for a screen that scrolls to a control it was sent to (web: an anchor id). */
+  scrollRef?: React.Ref<ScrollViewInstance>;
   /** Re-run the screen's reads. Shows the native pull-to-refresh spinner while it runs. */
   onRefresh?: () => Promise<unknown>;
   scroll?: boolean;
@@ -28,6 +30,7 @@ export function Screen({
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {scroll ? (
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={pad}
             keyboardShouldPersistTaps="handled"
             refreshControl={onRefresh ? (
