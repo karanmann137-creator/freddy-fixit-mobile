@@ -4,6 +4,7 @@
 import React from "react";
 import { Tabs } from "expo-router";
 import { fonts, Ic, rgba, useTheme, type IconName } from "@/kit";
+import { unreadBadge, useChatInbox } from "@/features/chat/inbox";
 import { useContractorData } from "@/features/contractor/data";
 import { contractorNav, navCounts } from "@/features/contractor/rules";
 
@@ -15,6 +16,8 @@ function tabIcon(name: IconName) {
 
 export default function ContractorTabs() {
   const { t } = useTheme();
+  // Both halves of the inbox (job + pre-hire threads), the same array the Messages tab lists.
+  const { totalUnread } = useChatInbox();
   const { state } = useContractorData();
   const nav = state.kind === "ok" ? contractorNav(navCounts(state.data)) : { earnings: false };
   return (
@@ -30,7 +33,8 @@ export default function ContractorTabs() {
     >
       <Tabs.Screen name="index" options={{ title: "Jobs", tabBarIcon: tabIcon("briefcase") }} />
       <Tabs.Screen name="available" options={{ title: "Available", tabBarIcon: tabIcon("search") }} />
-      <Tabs.Screen name="messages" options={{ title: "Messages", tabBarIcon: tabIcon("message-square") }} />
+      <Tabs.Screen name="messages" options={{ title: "Messages", tabBarIcon: tabIcon("message-square"),
+        tabBarBadge: unreadBadge(totalUnread), tabBarBadgeStyle: { backgroundColor: t.accent500, color: "#fff" /* rule-ok: web badge text is white */, fontFamily: fonts.bodyBold } }} />
       <Tabs.Screen name="earnings" options={{ title: "Earnings", tabBarIcon: tabIcon("dollar"), href: nav.earnings ? undefined : null }} />
       <Tabs.Screen name="account" options={{ title: "Account", tabBarIcon: tabIcon("user") }} />
     </Tabs>
